@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.thenDo = exports.charToCodepoint = exports.match1Char = void 0;
+exports.thenDo = exports.charToCodepoint = exports.matchRange = exports.match1Char = void 0;
 var fs = require('fs');
 /**
  * @description
@@ -25,6 +25,37 @@ function match1Char(c) {
     };
 }
 exports.match1Char = match1Char;
+;
+/**
+ * @description
+ * it returns a function which test if the first char of the `remained` part of
+ *  the argument of the function is between `l` and `u`, if it's true, update the `MatchedPair` wrapped
+ * in `Some`. Otherwise, it returns `None`.
+ *  * @param l : lower bound char, 1-char string
+ *  * @param u : upper bound char, 1-char string
+ * @returns the updated `MatchedPair` wrapped in `Some(x)` or `None`.
+ */
+function matchRange(l, u) {
+    let lCodepoint = charToCodepoint(l);
+    let uCodepoint = charToCodepoint(u);
+    if (l > u) {
+        throw new Error("Error: the codepoint of `" + l + "` is not smaller than `" + u + "`)");
+    }
+    return (m) => {
+        const charToBeMatched = m.remained[0];
+        const codePointToBeMatched = charToCodepoint(charToBeMatched);
+        if (codePointToBeMatched >= lCodepoint && codePointToBeMatched <= uCodepoint) {
+            return { _tag: "Some", value: {
+                    matched: m.matched + charToBeMatched,
+                    remained: m.remained.substring(1)
+                } };
+        }
+        else {
+            return { _tag: "None" };
+        }
+    };
+}
+exports.matchRange = matchRange;
 ;
 /**
  * convert the one-char string to codepoint.
