@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.harfbuzzTest = void 0;
 var hb = require('harfbuzzjs/hbjs');
 var fs = require('fs');
+// some part of code derived from that by Ebrahim Byagowi,
+// under MIT License
 function harfbuzzTest(inputString) {
     WebAssembly.instantiate(fs.readFileSync(__dirname + "/../3rdparty/harfbuzzjs/hb.wasm"))
         .then(function (wsm) {

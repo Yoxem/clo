@@ -1,6 +1,7 @@
 var hb = require('harfbuzzjs/hbjs');
 var fs = require('fs');
-
+// some part of code derived from that by Ebrahim Byagowi,
+// under MIT License
 export function harfbuzzTest(inputString: string){
     WebAssembly.instantiate(fs.readFileSync(__dirname+"/../3rdparty/harfbuzzjs/hb.wasm"))
         .then(function (wsm) {
