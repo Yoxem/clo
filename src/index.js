@@ -220,6 +220,7 @@ function tokenize(input) {
     };
     console.log(input + ", result: ");
     console.log(thenDo(input_matchee_pair, integer));
+    // TODO: id, string, space, basic operator, 3 marks: @, {, }.
 }
 exports.tokenize = tokenize;
 tokenize("+123");

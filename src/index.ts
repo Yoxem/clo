@@ -242,6 +242,7 @@ export function tokenize(input : string){
     }
     console.log(input+", result: ");
     console.log(thenDo(input_matchee_pair, integer));
+    // TODO: id, string, space, basic operator, 3 marks: @, {, }.
 
 }
 
