@@ -27,10 +27,13 @@ export type Maybe<T> = Some<T> | None;
 /**
  * @description
  * the pair of the string to be matched later and the string that have been matched
- * @param matched : string have been matched
- * @param remained : string will be tested whether it'll be matched.
- */
-export type MatcheePair = {matched : string; remained : string};
+*/
+export interface MatcheePair {
+    /** have been matched */
+    matched : string
+    /** will be tested whether it'll be matched. */
+    remained : string
+}
 
 /**
  * @description
