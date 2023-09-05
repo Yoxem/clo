@@ -231,7 +231,7 @@ export function tokenize(input : string){
         {matched:"",
         remained: input});
 
-    // integer = ([+]|[-])\d\d?
+    // integer = ([+]|[-])?\d\d*
     let integer = (x : MatcheePair) => 
     { let wrapped_x = toSome(x);
         let plusMinus = orDo(match1Char('+'), match1Char('-')); // ([+]|[-])
