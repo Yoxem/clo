@@ -1,4 +1,4 @@
-import { matchAny } from "../src";
+import { matchAny, tokenize } from "../src";
 
 let assert = require("assert");
 let cloMain = require("../src");
@@ -73,6 +73,31 @@ let doTestRes9 = thenDo(doThenTestee9, matchAny);
 assert(doTestRes9._tag == "Some");
 assert(doTestRes9.value.matched == "妳");
 assert(doTestRes9.value.remained == "的");
+
+tokenize("+123");
+tokenize("123");
+tokenize("-123");
+tokenize(" 123");
+try {
+    tokenize("c123");
+
+} catch (error) {
+    console.log(error);
+}
+
+tokenize("  ");
+tokenize(" ");
+tokenize(" \t");
+tokenize(" \t123");
+
+try {
+    tokenize(" \t123aaa456");
+
+
+} catch (error) {
+    console.log(error);
+}
+tokenize(" \t123\n456");
 
 
 // harfbuzz test

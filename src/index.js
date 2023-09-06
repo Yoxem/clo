@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tokenize = exports.zeroOrOnceDo = exports.notDo = exports.zeroOrMoreDo = exports.orDo = exports.thenDo = exports.charToCodepoint = exports.matchRange = exports.matchAny = exports.match1Char = void 0;
+exports.tokenize = exports.zeroOrOnceDo = exports.notDo = exports.zeroOrMoreDo = exports.orDo = exports.thenDo = exports.charToCodepoint = exports.matchRange = exports.matchAny = exports.match1Char = exports.TokenType = void 0;
 var fs = require('fs');
 /**
  * wrap a x in a `Some(T)`
@@ -10,6 +10,32 @@ var fs = require('fs');
 function toSome(x) {
     return { _tag: "Some", value: x };
 }
+/**
+ * The types of Token
+ *    NL, // newline
+ *
+ *   SP, // half-width space and tab
+ *
+ * ID, // identifier
+ *
+ * STR, // string
+ *
+ * OP, // operator or something like it
+ *
+ * FLO, // float num
+ *
+ * INT, // Integer
+ */
+var TokenType;
+(function (TokenType) {
+    TokenType[TokenType["NL"] = 0] = "NL";
+    TokenType[TokenType["SP"] = 1] = "SP";
+    TokenType[TokenType["ID"] = 2] = "ID";
+    TokenType[TokenType["STR"] = 3] = "STR";
+    TokenType[TokenType["OP"] = 4] = "OP";
+    TokenType[TokenType["FLO"] = 5] = "FLO";
+    TokenType[TokenType["INT"] = 6] = "INT";
+})(TokenType || (exports.TokenType = TokenType = {}));
 /**
  * @description
  * it returns a function which test if the first char of the `remained` part of
@@ -211,20 +237,70 @@ exports.zeroOrOnceDo = zeroOrOnceDo;
 function tokenize(input) {
     var input_matchee_pair = toSome({ matched: "",
         remained: input });
-    // integer = ([+]|[-])\d\d?
+    // integer = ([+]|[-])?\d\d*
     let integer = (x) => {
         let wrapped_x = toSome(x);
         let plusMinus = orDo(match1Char('+'), match1Char('-')); // ([+]|[-])
         let d = matchRange('0', '9'); // \d
-        return thenDo(thenDo(thenDo(wrapped_x, zeroOrOnceDo(plusMinus)), d), zeroOrMoreDo(d));
+        var result = thenDo(thenDo(thenDo(wrapped_x, zeroOrOnceDo(plusMinus)), d), zeroOrMoreDo(d));
+        if (result._tag == "Some") {
+            result.value.matched_type = TokenType.INT;
+        }
+        return result;
     };
-    console.log(input + ", result: ");
-    console.log(thenDo(input_matchee_pair, integer));
+    let space = (x) => {
+        let wrapped_x = toSome(x);
+        let s_aux = orDo(match1Char(' '), match1Char('\t')); // (" " | "\t")
+        var result = thenDo(thenDo(wrapped_x, s_aux), zeroOrMoreDo(s_aux));
+        if (result._tag == "Some") {
+            result.value.matched_type = TokenType.SP;
+        }
+        return result;
+    };
+    let newline = (x) => {
+        let wrapped_x = toSome(x);
+        // nl = \r?\n
+        let result = thenDo(thenDo(wrapped_x, zeroOrOnceDo(match1Char('\r'))), match1Char('\n'));
+        if (result._tag == "Some") {
+            result.value.matched_type = TokenType.NL;
+        }
+        return result;
+    };
+    let term = (token_list, x) => {
+        var ln = 1;
+        var col = 0;
+        var old_x = x;
+        let term_list = [newline, space, integer];
+        let term_aux = term_list.reduce((x, y) => orDo(x, y));
+        var new_x = thenDo(old_x, term_aux);
+        while (new_x._tag != "None") {
+            if (new_x.value.matched_type != TokenType.NL) {
+                col += new_x.value.matched.length;
+                token_list.push({ text: new_x.value.matched,
+                    type: new_x.value.matched_type,
+                    ln: ln,
+                    col: col });
+            }
+            else {
+                col = 0;
+                ln += 1;
+                token_list.push({ text: new_x.value.matched,
+                    type: new_x.value.matched_type,
+                    ln: ln,
+                    col: col });
+            }
+            old_x = toSome({ matched: "",
+                remained: new_x.value.remained });
+            new_x = thenDo(old_x, term_aux);
+        }
+        if (old_x.value.remained.length) {
+            console.log(token_list);
+            throw new Error("the code can't be tokenized is near Ln. " + ln + ", Col." + col
+                + ", starting with " + old_x.value.remained.substring(0, 10));
+        }
+        return token_list;
+    };
+    console.log(term([], input_matchee_pair));
     // TODO: id, string, space, basic operator, 3 marks: @, {, }.
 }
 exports.tokenize = tokenize;
-tokenize("+123");
-tokenize("123");
-tokenize("-123");
-tokenize(" 123");
-tokenize("c123");

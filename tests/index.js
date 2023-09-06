@@ -57,6 +57,27 @@ let doTestRes9 = thenDo(doThenTestee9, src_1.matchAny);
 assert(doTestRes9._tag == "Some");
 assert(doTestRes9.value.matched == "妳");
 assert(doTestRes9.value.remained == "的");
+(0, src_1.tokenize)("+123");
+(0, src_1.tokenize)("123");
+(0, src_1.tokenize)("-123");
+(0, src_1.tokenize)(" 123");
+try {
+    (0, src_1.tokenize)("c123");
+}
+catch (error) {
+    console.log(error);
+}
+(0, src_1.tokenize)("  ");
+(0, src_1.tokenize)(" ");
+(0, src_1.tokenize)(" \t");
+(0, src_1.tokenize)(" \t123");
+try {
+    (0, src_1.tokenize)(" \t123aaa456");
+}
+catch (error) {
+    console.log(error);
+}
+(0, src_1.tokenize)(" \t123\n456");
 // harfbuzz test
 let harfbuzz = require("../src/harfbuzz.js");
 harfbuzz.harfbuzzTest("123.abc");
