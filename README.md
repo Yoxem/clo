@@ -6,3 +6,4 @@ another personal draught of a typesetting language and engine.
  - 20230905-06: 建立 : `toSome`, initial of basic tokenizer (`tokenize`),
    `matchAny`, `notDo`, `orDo`, `zeroOrMoreDo`, `zeroOrOnceDo`
  - 20230905-07:強化`tokenize`, 加強功能，加`Token`界面。
+ - 20230907-08:強化`tokenize`。
