@@ -24,7 +24,13 @@ function toSome(x) {
  *
  * FLO, // float num
  *
- * INT, // Integer
+ * INT, // integer
+ *
+ * I_* // integer manipulation
+ *
+ * F_* // float manipulation
+ *
+ * SEMI_C// semi-colon
  */
 var TokenType;
 (function (TokenType) {
@@ -32,9 +38,35 @@ var TokenType;
     TokenType[TokenType["SP"] = 1] = "SP";
     TokenType[TokenType["ID"] = 2] = "ID";
     TokenType[TokenType["STR"] = 3] = "STR";
-    TokenType[TokenType["OP"] = 4] = "OP";
-    TokenType[TokenType["FLO"] = 5] = "FLO";
-    TokenType[TokenType["INT"] = 6] = "INT";
+    TokenType[TokenType["FLO"] = 4] = "FLO";
+    TokenType[TokenType["INT"] = 5] = "INT";
+    TokenType[TokenType["F_ADD"] = 6] = "F_ADD";
+    TokenType[TokenType["F_SUB"] = 7] = "F_SUB";
+    TokenType[TokenType["F_MUL"] = 8] = "F_MUL";
+    TokenType[TokenType["F_DIV"] = 9] = "F_DIV";
+    TokenType[TokenType["I_ADD"] = 10] = "I_ADD";
+    TokenType[TokenType["I_SUB"] = 11] = "I_SUB";
+    TokenType[TokenType["I_MUL"] = 12] = "I_MUL";
+    TokenType[TokenType["I_DIV"] = 13] = "I_DIV";
+    TokenType[TokenType["L_PAREN"] = 14] = "L_PAREN";
+    TokenType[TokenType["R_PAREN"] = 15] = "R_PAREN";
+    TokenType[TokenType["L_BRACK"] = 16] = "L_BRACK";
+    TokenType[TokenType["R_BRACK"] = 17] = "R_BRACK";
+    TokenType[TokenType["L_BRACE"] = 18] = "L_BRACE";
+    TokenType[TokenType["R_BRACE"] = 19] = "R_BRACE";
+    TokenType[TokenType["COMMA"] = 20] = "COMMA";
+    TokenType[TokenType["DOT"] = 21] = "DOT";
+    TokenType[TokenType["COLON"] = 22] = "COLON";
+    TokenType[TokenType["SEMI_C"] = 23] = "SEMI_C";
+    TokenType[TokenType["AT"] = 24] = "AT";
+    TokenType[TokenType["HASH"] = 25] = "HASH";
+    TokenType[TokenType["EQ"] = 26] = "EQ";
+    TokenType[TokenType["SET"] = 27] = "SET";
+    TokenType[TokenType["GT"] = 28] = "GT";
+    TokenType[TokenType["LT"] = 29] = "LT";
+    TokenType[TokenType["GE"] = 30] = "GE";
+    TokenType[TokenType["LE"] = 31] = "LE";
+    TokenType[TokenType["R_ARROW"] = 32] = "R_ARROW";
 })(TokenType || (exports.TokenType = TokenType = {}));
 /**
  * @description
@@ -237,40 +269,106 @@ exports.zeroOrOnceDo = zeroOrOnceDo;
 function tokenize(input) {
     var input_matchee_pair = toSome({ matched: "",
         remained: input });
+    /**
+     * generate a parser of a basic term (b_term)
+     * @param pattern : the pattern parser
+     * @param token_type : the returning token type
+     * @returns a wrapped parser.
+     */
+    function bTerm(pattern, token_type) {
+        return (x) => {
+            let wrapped_x = toSome(x);
+            let result = pattern(wrapped_x);
+            if (result._tag == "Some") {
+                result.value.matched_type = token_type;
+            }
+            return result;
+        };
+    }
+    let d = matchRange('0', '9'); // \d
+    // [+-]
+    let plusMinus = orDo(match1Char('+'), match1Char('-'));
+    let s_aux = orDo(match1Char(' '), match1Char('\t')); // (" " | "\t")
     // integer = ([+]|[-])?\d\d*
-    let integer = (x) => {
-        let wrapped_x = toSome(x);
-        let plusMinus = orDo(match1Char('+'), match1Char('-')); // ([+]|[-])
-        let d = matchRange('0', '9'); // \d
-        var result = thenDo(thenDo(thenDo(wrapped_x, zeroOrOnceDo(plusMinus)), d), zeroOrMoreDo(d));
-        if (result._tag == "Some") {
-            result.value.matched_type = TokenType.INT;
-        }
-        return result;
-    };
-    let space = (x) => {
-        let wrapped_x = toSome(x);
-        let s_aux = orDo(match1Char(' '), match1Char('\t')); // (" " | "\t")
-        var result = thenDo(thenDo(wrapped_x, s_aux), zeroOrMoreDo(s_aux));
-        if (result._tag == "Some") {
-            result.value.matched_type = TokenType.SP;
-        }
-        return result;
-    };
-    let newline = (x) => {
-        let wrapped_x = toSome(x);
-        // nl = \r?\n
-        let result = thenDo(thenDo(wrapped_x, zeroOrOnceDo(match1Char('\r'))), match1Char('\n'));
-        if (result._tag == "Some") {
-            result.value.matched_type = TokenType.NL;
-        }
-        return result;
-    };
+    let integer = bTerm((x) => thenDo(thenDo(thenDo(x, zeroOrOnceDo(plusMinus)), d), zeroOrMoreDo(d)), TokenType.INT);
+    // space = [ \t]+
+    let space = bTerm((x) => thenDo(thenDo(x, s_aux), zeroOrMoreDo(s_aux)), TokenType.INT);
+    // newline = \r?\n
+    let newline = bTerm((x) => thenDo(thenDo(x, zeroOrOnceDo(match1Char('\r'))), match1Char('\n')), TokenType.NL);
+    // [_A-Za-z]
+    let idHead = orDo(orDo(matchRange('a', 'z'), matchRange('A', 'Z')), match1Char('_'));
+    let idRemained = orDo(idHead, matchRange('0', '9')); // [_A-Za-z0-9]
+    // id = [_A-Za-z][_A-Za-z0-9]*
+    let id = bTerm((x) => thenDo(thenDo(x, idHead), zeroOrMoreDo(idRemained)), TokenType.ID);
+    let doublequote = match1Char("\"");
+    // [\\][\"]
+    let escapeReverseSlash = (x) => thenDo(thenDo(toSome(x), match1Char("\\")), doublequote);
+    // ([\\]["]|[^\"])*
+    let stringInnerPattern = zeroOrMoreDo(orDo(escapeReverseSlash, notDo(match1Char("\""))));
+    // str = ["]([\\]["]|[^"])*["]
+    let str = bTerm((x) => thenDo(thenDo(thenDo(x, doublequote), stringInnerPattern), doublequote), TokenType.STR);
+    // float = [+-]?\d+[.]\d+
+    function floatPattern(x) {
+        return thenDo(thenDo(thenDo(thenDo(thenDo(thenDo(x, zeroOrOnceDo(plusMinus)), d), zeroOrMoreDo(d)), match1Char(".")), d), zeroOrMoreDo(d));
+    }
+    ;
+    let float = bTerm(floatPattern, TokenType.FLO);
+    // operators
+    // +.
+    let floatAdd = bTerm((x) => thenDo(thenDo(x, match1Char("+")), match1Char(".")), TokenType.F_ADD);
+    // +.
+    let floatSub = bTerm((x) => thenDo(thenDo(x, match1Char("-")), match1Char(".")), TokenType.F_SUB);
+    // *.
+    let floatMul = bTerm((x) => thenDo(thenDo(x, match1Char("*")), match1Char(".")), TokenType.F_MUL);
+    // /.
+    let floatDiv = bTerm((x) => thenDo(thenDo(x, match1Char("/")), match1Char(".")), TokenType.F_DIV);
+    // ==
+    let eq = bTerm((x) => thenDo(thenDo(x, match1Char("=")), match1Char("=")), TokenType.EQ);
+    // >=
+    let ge = bTerm((x) => thenDo(thenDo(x, match1Char(">")), match1Char("=")), TokenType.GE);
+    // <=
+    let le = bTerm((x) => thenDo(thenDo(x, match1Char("<")), match1Char("=")), TokenType.LE);
+    // ->
+    let rightArrow = bTerm((x) => thenDo(thenDo(x, match1Char("-")), match1Char(">")), TokenType.R_ARROW);
+    /**
+     * unary operator : generating the pattern of basic unary operator
+     * @param char : uniry char for the operator
+     * @param token_type : the corresponding token_type
+     */
+    function unaryOp(char, token_type) {
+        return bTerm((x) => thenDo(x, match1Char(char)), token_type);
+    }
+    ;
+    let intAdd = unaryOp('+', TokenType.I_ADD);
+    let intSub = unaryOp('-', TokenType.I_SUB);
+    let intMul = unaryOp('*', TokenType.I_MUL);
+    let intDiv = unaryOp('/', TokenType.I_DIV);
+    let lParen = unaryOp('(', TokenType.L_PAREN);
+    let rParen = unaryOp(')', TokenType.R_PAREN);
+    let lBracket = unaryOp('[', TokenType.L_BRACK);
+    let rBracket = unaryOp(']', TokenType.R_BRACK);
+    let lBrace = unaryOp('{', TokenType.L_BRACE);
+    let rBrace = unaryOp('}', TokenType.R_BRACE);
+    let comma = unaryOp(',', TokenType.COMMA);
+    let dot = unaryOp('.', TokenType.DOT);
+    let colon = unaryOp(':', TokenType.COLON);
+    let semicolon = unaryOp(';', TokenType.SEMI_C);
+    let at = unaryOp('@', TokenType.AT);
+    let hash = unaryOp('#', TokenType.HASH);
+    let set = unaryOp('=', TokenType.SET);
+    let greaterthan = unaryOp('>', TokenType.GT);
+    let lessthan = unaryOp('<', TokenType.LE);
     let term = (token_list, x) => {
         var ln = 1;
         var col = 0;
         var old_x = x;
-        let term_list = [newline, space, integer];
+        let term_list = [float, newline, space, integer, str, id,
+            floatAdd, floatSub, floatMul, floatDiv,
+            intAdd, intSub, intMul, intDiv,
+            eq, ge, le, rightArrow,
+            lParen, rParen, lBracket, rBracket, lBrace, rBrace,
+            comma, dot, colon, semicolon, at, hash,
+            set, greaterthan, lessthan];
         let term_aux = term_list.reduce((x, y) => orDo(x, y));
         var new_x = thenDo(old_x, term_aux);
         while (new_x._tag != "None") {

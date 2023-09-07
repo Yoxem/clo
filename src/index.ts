@@ -1,3 +1,5 @@
+import { match } from "assert";
+
 var fs = require('fs');
 
 export type Some<T> = { _tag: "Some"; value: T };
@@ -51,16 +53,49 @@ export interface MatcheePair {
  * 
  * FLO, // float num
  * 
- * INT, // Integer
+ * INT, // integer
+ * 
+ * I_* // integer manipulation
+ * 
+ * F_* // float manipulation
+ * 
+ * SEMI_C// semi-colon
  */
 export enum TokenType{
     NL, // newlinw
     SP, // half-width space and tab
     ID, // identifier
     STR, // string
-    OP, // operator
     FLO, // float num
     INT, // integer
+    F_ADD,
+    F_SUB,
+    F_MUL,
+    F_DIV,
+    I_ADD, 
+    I_SUB, 
+    I_MUL, 
+    I_DIV,
+    L_PAREN, // (
+    R_PAREN, // )
+    L_BRACK, // [
+    R_BRACK, // ]
+    L_BRACE, // {
+    R_BRACE, // }
+    COMMA, // ,
+    DOT, // .
+    COLON, // :
+    SEMI_C, // ;
+    AT, // @
+    HASH, // #
+    EQ, // ==
+    SET, // =
+    GT, // > greater than
+    LT, // <less than
+    GE, // >=
+    LE, // <=
+    R_ARROW, // ->
+
 }
 
 /**
@@ -276,45 +311,160 @@ export function tokenize(input : string){
         {matched:"",
         remained: input});
 
+    /**
+     * generate a parser of a basic term (b_term)
+     * @param pattern : the pattern parser
+     * @param token_type : the returning token type
+     * @returns a wrapped parser.
+     */
+    function bTerm(pattern : Function, token_type : TokenType){
+        return (x : MatcheePair) =>{
+            let wrapped_x = toSome(x);
+            let result = pattern(wrapped_x); 
+            if (result._tag == "Some") {
+                result.value.matched_type = token_type;
+            }
+            return result;
+        }
+    }
+
+    let d = matchRange('0','9'); // \d
+    // [+-]
+    let plusMinus = orDo(match1Char('+'), match1Char('-'));
+    let s_aux = orDo(match1Char(' '), match1Char('\t')); // (" " | "\t")
+
     // integer = ([+]|[-])?\d\d*
-    let integer = (x : MatcheePair) => 
-    { let wrapped_x = toSome(x);
-        let plusMinus = orDo(match1Char('+'), match1Char('-')); // ([+]|[-])
-        let d = matchRange('0','9'); // \d
-        var result = thenDo(thenDo(thenDo(wrapped_x, 
-            zeroOrOnceDo(plusMinus)),d),
-            zeroOrMoreDo(d));
-        
-        if (result._tag == "Some"){
-            result.value.matched_type = TokenType.INT;
-        }
-        return result;
-    }
-    let space = (x : MatcheePair) =>{
-        let wrapped_x = toSome(x);
-        let s_aux = orDo(match1Char(' '), match1Char('\t')); // (" " | "\t")
-        var result = thenDo(thenDo(wrapped_x, s_aux), zeroOrMoreDo(s_aux));
-        if (result._tag == "Some"){
-            result.value.matched_type = TokenType.SP;
-        }
-        return result;
-    }
-    let newline = (x : MatcheePair) =>{
-        let wrapped_x = toSome(x);
-        // nl = \r?\n
-        let result = thenDo(thenDo(wrapped_x,
-            zeroOrOnceDo(match1Char('\r'))), match1Char('\n'));
-        if (result._tag == "Some"){
-            result.value.matched_type = TokenType.NL;
-        }
-        return result;
-    }
+    let integer = bTerm((x : Maybe<MatcheePair>)=>
+                            thenDo(thenDo(thenDo(x, 
+                            zeroOrOnceDo(plusMinus)),d),
+                            zeroOrMoreDo(d)),
+                        TokenType.INT);
+    // space = [ \t]+
+    let space = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(x, s_aux), zeroOrMoreDo(s_aux)),
+        TokenType.INT);
+
+    // newline = \r?\n
+    let newline = bTerm((x : Maybe<MatcheePair>)=>
+    thenDo(thenDo(x, 
+        zeroOrOnceDo(match1Char('\r'))),
+        match1Char('\n')),
+        TokenType.NL);
+
+    // [_A-Za-z]
+    let idHead = orDo(orDo(matchRange('a','z'),matchRange('A','Z')), match1Char('_'));
+    let idRemained = orDo(idHead, matchRange('0','9')); // [_A-Za-z0-9]
+
+    // id = [_A-Za-z][_A-Za-z0-9]*
+    let id = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(x, 
+            idHead),
+            zeroOrMoreDo(idRemained)),
+            TokenType.ID);
+    let doublequote = match1Char("\"");
+    // [\\][\"]
+    let escapeReverseSlash = (x:MatcheePair)=>
+        thenDo(thenDo(toSome(x), match1Char("\\")), doublequote);
+    // ([\\]["]|[^\"])*
+    let stringInnerPattern = zeroOrMoreDo(
+        orDo(escapeReverseSlash, notDo(match1Char("\""))));
+
+    // str = ["]([\\]["]|[^"])*["]
+    let str = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(thenDo(x,doublequote),
+        stringInnerPattern),doublequote),
+        TokenType.STR);
+
+    // float = [+-]?\d+[.]\d+
+    function floatPattern(x : Maybe<MatcheePair>){
+        return thenDo(thenDo(thenDo(thenDo(thenDo(thenDo(x, 
+        zeroOrOnceDo(plusMinus)),d),
+        zeroOrMoreDo(d)),
+        match1Char(".")),d),
+        zeroOrMoreDo(d))};
+    let float = bTerm(floatPattern, TokenType.FLO);
+
+    // operators
+    // +.
+    let floatAdd = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(x, match1Char("+")),match1Char(".")),
+        TokenType.F_ADD);
+    // +.
+    let floatSub = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(x, match1Char("-")),match1Char(".")),
+        TokenType.F_SUB);  
+
+    // *.
+    let floatMul = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(x, match1Char("*")),match1Char(".")),
+        TokenType.F_MUL);
+
+    // /.
+    let floatDiv = bTerm((x : Maybe<MatcheePair>)=>
+        thenDo(thenDo(x, match1Char("/")),match1Char(".")),
+        TokenType.F_DIV);
+
+    // ==
+    let eq = bTerm((x : Maybe<MatcheePair>)=>
+    thenDo(thenDo(x, match1Char("=")),match1Char("=")),
+    TokenType.EQ);
+
+    // >=
+    let ge = bTerm((x : Maybe<MatcheePair>)=>
+    thenDo(thenDo(x, match1Char(">")),match1Char("=")),
+    TokenType.GE);
+
+    // <=
+    let le = bTerm((x : Maybe<MatcheePair>)=>
+    thenDo(thenDo(x, match1Char("<")),match1Char("=")),
+    TokenType.LE);
+
+    // ->
+    let rightArrow = bTerm((x : Maybe<MatcheePair>)=>
+    thenDo(thenDo(x, match1Char("-")),match1Char(">")),
+    TokenType.R_ARROW);
+    
+    /**
+     * unary operator : generating the pattern of basic unary operator
+     * @param char : uniry char for the operator
+     * @param token_type : the corresponding token_type
+     */
+    function unaryOp(char: string, token_type: TokenType) {
+        return bTerm((x : Maybe<MatcheePair>)=>thenDo(x, match1Char(char)),
+        token_type);};
+
+    let intAdd = unaryOp('+', TokenType.I_ADD);
+    let intSub = unaryOp('-', TokenType.I_SUB);
+    let intMul = unaryOp('*', TokenType.I_MUL);
+    let intDiv = unaryOp('/', TokenType.I_DIV);
+    let lParen = unaryOp('(', TokenType.L_PAREN);
+    let rParen = unaryOp(')', TokenType.R_PAREN);
+    let lBracket = unaryOp('[', TokenType.L_BRACK);
+    let rBracket = unaryOp(']', TokenType.R_BRACK);
+    let lBrace = unaryOp('{', TokenType.L_BRACE);
+    let rBrace = unaryOp('}', TokenType.R_BRACE);
+    let comma = unaryOp(',', TokenType.COMMA);
+    let dot = unaryOp('.', TokenType.DOT);
+    let colon = unaryOp(':', TokenType.COLON);
+    let semicolon = unaryOp(';', TokenType.SEMI_C);
+    let at = unaryOp('@', TokenType.AT);
+    let hash = unaryOp('#', TokenType.HASH);
+    let set = unaryOp('=', TokenType.SET);
+    let greaterthan = unaryOp('>', TokenType.GT);
+    let lessthan = unaryOp('<', TokenType.LE);
+
 
     let term = (token_list : Array<Token>, x :  Some<MatcheePair>)=>{
         var ln = 1;
         var col = 0;
         var old_x  = x;
-        let term_list = [newline, space, integer];
+        let term_list = [float, newline, space, integer,str,  id,
+            floatAdd, floatSub, floatMul, floatDiv,
+            intAdd, intSub, intMul, intDiv,
+            eq, ge, le, rightArrow,
+            lParen, rParen, lBracket, rBracket, lBrace, rBrace,
+            comma, dot, colon, semicolon, at, hash,
+            set,greaterthan, lessthan];
         let term_aux = term_list.reduce((x,y)=> orDo(x,y));
 
         var new_x : Maybe<MatcheePair> = thenDo(old_x, term_aux);

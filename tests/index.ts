@@ -99,6 +99,15 @@ try {
 }
 tokenize(" \t123\n456");
 
+tokenize("\"\"");
+tokenize("\"123\"");
+tokenize("\"1\\\"23\"");
+tokenize("\"1\\\"23\"  abc123");
+
+tokenize("+0.012");
+tokenize("0.0");
+tokenize("-222.0");
+tokenize("1+1 ==2; 3+8 foo(12)");
 
 // harfbuzz test
 let harfbuzz = require("../src/harfbuzz.js");

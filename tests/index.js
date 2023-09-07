@@ -78,6 +78,14 @@ catch (error) {
     console.log(error);
 }
 (0, src_1.tokenize)(" \t123\n456");
+(0, src_1.tokenize)("\"\"");
+(0, src_1.tokenize)("\"123\"");
+(0, src_1.tokenize)("\"1\\\"23\"");
+(0, src_1.tokenize)("\"1\\\"23\"  abc123");
+(0, src_1.tokenize)("+0.012");
+(0, src_1.tokenize)("0.0");
+(0, src_1.tokenize)("-222.0");
+(0, src_1.tokenize)("1+1 ==2; 3+8 foo(12)");
 // harfbuzz test
 let harfbuzz = require("../src/harfbuzz.js");
 harfbuzz.harfbuzzTest("123.abc");
