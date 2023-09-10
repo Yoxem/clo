@@ -98,7 +98,9 @@ export enum TokenType {
     NE, // <>
     APOS, // '
     R_ARROW, // ->
-
+    TRUE, // true
+    FALSE, // false
+    IF, // if
 }
 
 /**
@@ -196,6 +198,25 @@ export function matchRange(l: string, u: string): (m: MatcheePair) => Maybe<Matc
         }
     }
 };
+
+
+/**
+ * check if a matcheePair `m` matches a stringv `s`. 
+ * @param s the checker string.
+ * @returns `None` or matched pair wrapped in `Some`
+ */
+ export function matchWord(s: string, ): (m: MatcheePair) => Maybe<MatcheePair> {
+    return (m)=>{
+        if (s.length==0){
+            return { _tag: "None" };
+        }
+        var someM : Maybe<MatcheePair> = toSome(m);
+        for (var idx : number=0; idx<s.length; idx++){
+            someM = thenDo(someM, match1Char(s[idx]))
+        }
+        return someM;
+    }
+}
 
 /**
  * convert the one-char string to codepoint.
@@ -444,6 +465,7 @@ export function tokenize(input: string): Array<Token> {
         thenDo(thenDo(x, match1Char("-")), match1Char(">")),
         TokenType.R_ARROW);
 
+
     /**
      * unary operator : generating the pattern of basic unary operator
      * @param char : uniry char for the operator
@@ -488,7 +510,7 @@ export function tokenize(input: string): Array<Token> {
             lParen, rParen, lBracket, rBracket, lBrace, rBrace,
             comma, dot, colon, semicolon, at, hash,
             set, greaterthan, lessthan, apos,
-            float, newline, space, integer, str, id];
+            float, newline, space,  id,  integer, str];
         let term_aux = term_list.reduce((x, y) => orDo(x, y));
 
         var new_x: Maybe<MatcheePair> = thenDo(old_x, term_aux);
