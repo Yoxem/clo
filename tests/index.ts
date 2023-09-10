@@ -1,9 +1,8 @@
-import { matchAny, tokenize } from "../src";
 
 let assert = require("assert");
-let cloMain = require("../src");
+let tokenize = require("../src/tokenize");
 
-let a = cloMain.match1Char("我");
+let a = tokenize.match1Char("我");
 
 let example1 = a({matched: "", remained: "我的"});
 assert(example1._tag == "Some");
@@ -15,14 +14,15 @@ assert(example2._tag == "None");
 
 
 
-let thenDo = cloMain.thenDo;
-let orDo = cloMain.orDo;
-let zeroOrMoreDo = cloMain.zeroOrMoreDo;
-let notDo = cloMain.notDo;
+let thenDo = tokenize.thenDo;
+let orDo = tokenize.orDo;
+let zeroOrMoreDo = tokenize.zeroOrMoreDo;
+let notDo = tokenize.notDo;
+let matchAny = tokenize.matchAny;
 
 // composed part x
-let compPart1 = cloMain.match1Char("我");
-let compPart2 = cloMain.match1Char("的");
+let compPart1 = tokenize.match1Char("我");
+let compPart2 = tokenize.match1Char("的");
 
 let doThenTestee1 = {_tag : "Some",value : {matched: "", remained: "我的貓"}};
 let doTestRes1 = thenDo(thenDo(doThenTestee1, compPart1), compPart2);
@@ -74,40 +74,42 @@ assert(doTestRes9._tag == "Some");
 assert(doTestRes9.value.matched == "妳");
 assert(doTestRes9.value.remained == "的");
 
-tokenize("+123");
-tokenize("123");
-tokenize("-123");
-tokenize(" 123");
+tokenize.tokenize("+123");
+tokenize.tokenize("123");
+tokenize.tokenize("-123");
+tokenize.tokenize(" 123");
 try {
-    tokenize("c123");
+    tokenize.tokenize("c123");
 
 } catch (error) {
     console.log(error);
 }
 
-tokenize("  ");
-tokenize(" ");
-tokenize(" \t");
-tokenize(" \t123");
+tokenize.tokenize("  ");
+tokenize.tokenize(" ");
+tokenize.tokenize(" \t");
+tokenize.tokenize(" \t123");
 
 try {
-    tokenize(" \t123aaa456");
+    tokenize.tokenize(" \t123aaa456");
 
 
 } catch (error) {
     console.log(error);
 }
-tokenize(" \t123\n456");
+tokenize.tokenize(" \t123\n456");
 
-tokenize("\"\"");
-tokenize("\"123\"");
-tokenize("\"1\\\"23\"");
-tokenize("\"1\\\"23\"  abc123");
+tokenize.tokenize("\"\"");
+tokenize.tokenize("\"123\"");
+tokenize.tokenize("\"1\\\"23\"");
+tokenize.tokenize("\"1\\\"23\"  abc123");
 
-tokenize("+0.012");
-tokenize("0.0");
-tokenize("-222.0");
-tokenize("1+1 ==2; 3+8 foo(12)");
+tokenize.tokenize("+0.012");
+tokenize.tokenize("0.0");
+tokenize.tokenize("-222.0");
+tokenize.tokenize("1+1 ==2; 3+8 foo(12)");
+
+console.log(tokenize.tokenize("2+2"));
 
 // harfbuzz test
 let harfbuzz = require("../src/harfbuzz.js");
