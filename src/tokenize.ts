@@ -1,3 +1,4 @@
+import * as util from 'util';
 
 var fs = require('fs');
 
@@ -205,7 +206,7 @@ export function matchRange(l: string, u: string): (m: MatcheePair) => Maybe<Matc
  * @param s the checker string.
  * @returns `None` or matched pair wrapped in `Some`
  */
- export function matchWord(s: string, ): (m: MatcheePair) => Maybe<MatcheePair> {
+export function matchWord(s: string, ): (m: MatcheePair) => Maybe<MatcheePair> {
     return (m)=>{
         if (s.length==0){
             return { _tag: "None" };
@@ -377,7 +378,7 @@ export function tokenize(input: string): Array<Token> {
     // space = [ \t]+
     let space = bTerm((x: Maybe<MatcheePair>) =>
         thenDo(thenDo(x, s_aux), zeroOrMoreDo(s_aux)),
-        TokenType.INT);
+        TokenType.SP);
 
     // newline = \r?\n
     let newline = bTerm((x: Maybe<MatcheePair>) =>
