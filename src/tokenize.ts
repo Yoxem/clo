@@ -64,7 +64,7 @@ export interface MatcheePair {
  * SEMI_C// semi-colon
  */
 export enum TokenType {
-    NL, // newlinw
+    NL, // newline
     SP, // half-width space and tab
     ID, // identifier
     STR, // string

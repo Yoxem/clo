@@ -56,8 +56,7 @@ APPLYEE ::= REF | CONST | EXPR | FUNC
 BOOL ::= "true" | "false"
 FUNC ::= FUNC_OPTION? ( ARGS? ) -> TYPE {BLOCK}
 BLOCK ::= PROG (return ID |noReturn) ; 
-ARGS ::= TYPE (TYPE_VARS | ID)
-       | TYPE (TYPE_VARS | TYPE_VARS) , ARGS
+
 REF ::= VAR "." ID | VAR
 VAR ::= ID
 VAR_DEF  ::= "let" VAR "=" EXPR

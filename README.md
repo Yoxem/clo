@@ -9,3 +9,4 @@ another personal draught of a typesetting language and engine.
  - 20230907-08:強化`tokenize`。
  - 20230910 : add basic parser `CONST` rule, and add the grammar rule.
  - 20230914-15: 追加一寡 tokenizer ê 功能。
+ - 20230918: 重新tuì下kàu頂起做parser. add rule

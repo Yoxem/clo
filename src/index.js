@@ -29,6 +29,32 @@ const node_process_1 = require("node:process");
 const tk = __importStar(require("./tokenize.js"));
 const util = __importStar(require("util"));
 /**
+ * debug reprensenting
+ */
+let repr = (x) => { return util.inspect(x, { depth: null }); };
+/**
+ * concated 2 `tkTree`s
+ * @param x the array to be concated
+ * @param y the item or array to ve concated
+ * @returns concated tkTree array, or thrown error if can't be concated.
+ */
+function concat(x, y) {
+    if (Array.isArray(x)) {
+        return x.concat(y);
+    }
+    else {
+        throw new Error("the tkTree can't be concated, because it's not an array.");
+    }
+}
+function slice(x, index, end) {
+    if (Array.isArray(x)) {
+        return x.slice(index, end);
+    }
+    else {
+        throw new Error("the tkTree can't be concated, because it's not an array.");
+    }
+}
+/**
  * @description
  * match one token type.
  *
@@ -52,7 +78,8 @@ function m1TType(typ) {
             let result = {
                 _tag: "Some", value: {
                     matched: new_matched,
-                    remained: m.remained.slice(1)
+                    remained: m.remained.slice(1),
+                    ast: ([ttbm]),
                 }
             };
             return result;
@@ -64,133 +91,108 @@ function m1TType(typ) {
 }
 exports.m1TType = m1TType;
 ;
-let toSome = tk.toSome;
-let thenDo = tk.thenDo;
-let zeroOrOnceDo = tk.zeroOrOnceDo;
-let orDo = tk.orDo;
-let zeroOrMoreDo = tk.zeroOrMoreDo;
+/**
+ * type int
+ */
+let tInt = m1TType(tk.TokenType.INT);
+let tAdd = m1TType(tk.TokenType.I_ADD);
+let tMul = m1TType(tk.TokenType.I_MUL);
 node_process_1.argv.forEach((val, index) => {
     console.log(`${index}=${val}`);
 });
-let commandInput = "int a str b"; //argv[2];
-let commandInputTokenized = tk.tokenize(commandInput);
-let commandInputTokenizedFiltered = commandInputTokenized.filter((x) => {
-    return x.type != tk.TokenType.SP &&
-        x.type != tk.TokenType.NL;
-});
-console.log("aaa: " + util.inspect(commandInputTokenizedFiltered, { showHidden: true, depth: null }));
 /**
- * matchee pair of commandInputTokenized
+ * like `m ==> f` in ocaml
+ * @param m matchee wrapped
+ * @param f matching function
+ * @returns wrapped result
  */
-let commandTPair = { matched: [],
-    remained: commandInputTokenizedFiltered };
-let tInt = m1TType(tk.TokenType.INT);
-let tFlo = m1TType(tk.TokenType.FLO);
-let tStr = m1TType(tk.TokenType.STR);
-let tId = m1TType(tk.TokenType.ID);
-let tApos = m1TType(tk.TokenType.APOS);
-function tBool(x) {
-    let text = x.remained[0].text;
-    if (text == "true" || text == "false") {
-        return thenDo(toSome(x), m1TType(tk.TokenType.ID));
+function thenDo(m, f) {
+    if (m._tag == "None") {
+        return m;
     }
     else {
-        return { _tag: "None" };
+        var a = f(m.value);
+        if (a._tag == "Some") {
+            a.value.ast = concat(m.value.ast, a.value.ast);
+        }
+        return a;
     }
 }
 /**
- * define the right hand side of a grammar
- * eg. `LHS ::= a + b`
- * @param process  the right hand side processing : eg. `a + b` in `LHS`
- * @param arrange define the order (0 starting) of the elements of the result.
- * ast. : eg. `a + c` is `1 0 2` `(+ a c)`
- * @returns the processed ast.
+ * like `f1 | f2` in regex
+ * @param f1 the first tried function
+ * @param f2 the second tried function
+ * @returns wrapped result
  */
-function gramRHS(process, arrange) {
-    return (m) => {
-        let middle = process(m);
-        console.log("Middle" + util.inspect(middle, { showHidden: true, depth: null }));
-        if (middle._tag == "None") {
-            return middle;
+function orDo(f1, f2) {
+    return (x) => {
+        let res1 = f1(x);
+        if (res1._tag == "Some") {
+            return res1;
         }
         else {
-            let matched = middle.value.matched;
-            let arrLength = arrange.length;
-            let returnRrray = Array(arrange.length);
-            arrange.forEach((val, index) => {
-                returnRrray[arrange[index]] = matched[index];
-            });
-            let matchedTmp1Length = matched.length - arrLength;
-            console.log(matchedTmp1Length);
-            var matchedTmp1 = matched
-                .slice(0, matchedTmp1Length);
-            console.log("matchedTmp1" + util.inspect(matchedTmp1, { showHidden: true, depth: null }));
-            console.log("returnRrray" + util.inspect(returnRrray, { showHidden: true, depth: null }));
-            matchedTmp1.push(returnRrray);
-            let result = { _tag: "Some",
-                value: { matched: matchedTmp1,
-                    remained: middle.value.remained } };
-            return result;
+            let res2 = f2(x);
+            return res2;
         }
     };
 }
-/**
- * typeABS ::= "'" ID
- */
-var typeABS = (x) => {
-    var result = thenDo(thenDo(toSome(x), tApos), tId);
-    if (result._tag == "Some" && "text" in result.value.matched[1]) {
-        var realToken = result.value.matched[1];
-        realToken.text = "'" + realToken.text;
-        result.value.matched = [realToken];
-    }
-    return result;
-};
-/**
- * TypeId ::=  typeABS | ID
- */
-var typeName = (x) => {
-    return thenDo(toSome(x), orDo(typeABS, tId));
-};
-/**
- *  CONST ::= INT | STR | FLO | BOOL
- */
-/**
- * TODO: 要用 debugger 檢查分析問題
- */
-var constParser = gramRHS((x) => { return thenDo(toSome(x), orDo(orDo(orDo(tInt, tFlo), tStr), tBool)); }, [0]);
-/**
- * storing the tree
- */
-var astTree = [];
-/**
- * TYPE_PAIR ::= TYP_ID ID
- */
-var typePair = (x) => {
-    let a = thenDo(thenDo(x.maybeTokens, typeName), tId);
+let midfix = (f, signal) => (x) => {
+    var a = f(x);
     if (a._tag == "Some") {
-        let matched = a.value.matched;
-        let slice = matched.slice(matched.length - 2);
-        console.log("slice" + slice);
-        let b = { maybeTokens: a, ast: slice };
-        return b;
+        let ast_head = slice(a.value.ast, 0, a.value.ast.length - 3);
+        let ast_tail = slice(a.value.ast, a.value.ast.length - 3);
+        let new_ast = [ast_tail];
+        a.value.ast = new_ast;
+        console.log("+" + signal + "+" + repr(a));
     }
-    else {
-        let b = { maybeTokens: a, ast: [] };
-        return b;
-    }
+    return a;
 };
 /**
- * function's arguments
- * FN_ARGS = TYPE_PAIR ("," TYPE_PAIR)+
+ *
+ * fac1 = int MUL int
  */
-var fnArgs = (x) => {
-    let wrapper = { maybeTokens: toSome(x), ast: [] };
-    let a = typePair(wrapper);
-    console.log("AAAAA" + util.inspect(a, { showHidden: true, depth: null }));
-    let abanibi = typePair(a);
-    console.log("ABNB" + util.inspect(abanibi, { showHidden: true, depth: null }));
-    return { maybeTokens: abanibi.maybeTokens, ast: [a.ast, abanibi.ast] };
+//let fac1 = midfix((x : TokenMatcheePair)=>
+//            thenDo(thenDo(thenDo(tk.toSome(x), tInt), tMul), tInt));
+let fac1 = (x) => {
+    let a = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tInt), tMul), tInt), "fac1")(x);
+    return a;
 };
-let tree = fnArgs(commandTPair);
-console.log("CHRANN" + util.inspect(tree, { showHidden: true, depth: null }));
+/**
+ *
+ * fac2 = int MUL int
+ */
+let fac2 = tInt;
+/**
+ * fac = fac1 | fac2
+ */
+let fac = orDo(fac1, fac2);
+/**
+ *
+ * expr1 = fac ADD fac
+ */
+let expr1 = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), fac), tAdd), fac), "expr1");
+/**
+ * expr2 = fac
+ */
+let expr2 = fac;
+/**
+ * expr = expr1 | expr2
+ */
+let expr = orDo(expr1, expr2);
+let tokens = tk.tokenize("2+3"); //tk.tokenize(argv[2]);
+let tokensFiltered = tokens.filter((x) => {
+    return (x.type != tk.TokenType.NL
+        && x.type != tk.TokenType.SP);
+});
+let wrappedTokens = tk.toSome({
+    matched: [],
+    remained: tokensFiltered,
+    ast: []
+});
+let beta = expr({
+    matched: [],
+    remained: tokensFiltered,
+    ast: []
+});
+console.log(repr(wrappedTokens));
+console.log(repr(beta));
