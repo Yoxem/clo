@@ -1,7 +1,7 @@
 # clo
 another personal draught of a typesetting language and engine.
 website: https://kianting.info/wiki/w/Project:Clo
-License: MIT
+License: MIT 
 
 ## changing journal
  - 20230904 建立 thenDo、matchRange的函數、refactor harfbuzzjs 以及libpdf 等測試界面
