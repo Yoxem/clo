@@ -101,6 +101,7 @@ let tDiv = m1TType(tk.TokenType.I_DIV);
 let tLParen = m1TType(tk.TokenType.L_PAREN);
 let tRParen = m1TType(tk.TokenType.R_PAREN);
 
+let toSome = tk.toSome;
 
 
 argv.forEach((val, index) => {
@@ -170,26 +171,34 @@ let circumfix = (f : Function, signal? : string) => (x : TokenMatcheePair)=>{
     var a = f(x);
     if (a._tag == "Some"){
         let inner = a.value.ast[a.value.ast.length-2];
-        console.log("AST===="+repr(a.value.ast));
         let ast_middle : tkTree[] = [inner];
         let new_ast = [ast_middle];
         a.value.ast = new_ast;
-
-        console.log("+"+signal+"+"+repr(a));
-
-        
     }
     return a;
 }
 
-/** fac1 = "(" expr ")" */
-let fac1 = circumfix((x : TokenMatcheePair)=>
-thenDo(thenDo(thenDo(tk.toSome(x), tLParen), expr), tRParen), "fac1");
+/**
+ * TODO: 12(13)(14) only parsed with only 12(13)
+ */
+/** single1 = tInt | "(" expr ")"*/
+let single1 = circumfix((x : TokenMatcheePair) =>
+    thenDo(thenDo(thenDo(tk.toSome(x), tLParen), expr), tRParen), "fac1");
+let single2= tInt;
+let single = orDo(single1, single2);
 
-let fac2 = tInt;
+/** fac1 = single "(" int ")"  | single */
+let fac1Appliee = circumfix((x  : TokenMatcheePair) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "fac1");
+let fac1 = (x : TokenMatcheePair) => 
+    {
+        let n = thenDo(thenDo(toSome(x), single), fac1Appliee);
 
+        console.log("+"+"bocchitherock"+"+"+repr(n));
+    
+        return n
+    };
+let fac2 = single;
 let fac = orDo(fac1, fac2);
-
 
 
 /**
@@ -231,8 +240,10 @@ let expr = orDo(expr1, expr2);
 
 
 
+let tokens = tk.tokenize("12(13)(14)");
+//let tokens = tk.tokenize("(4-(3/4))");
+//tk.tokenize(argv[2]);
 
-let tokens = tk.tokenize("(4-(3/4))");//tk.tokenize(argv[2]);
 let tokensFiltered = tokens.filter(
     (x)=>{return (x.type != tk.TokenType.NL
             && x.type != tk.TokenType.SP)});
@@ -249,5 +260,5 @@ let beta = expr({
         ast : []});
 
 
-console.log(repr(beta));
+console.log("RESULT="+repr(beta));
 

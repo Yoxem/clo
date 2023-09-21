@@ -1,1 +1,5 @@
-expr = int | int add int # expr1 and #expr2
+single = "(" expr ")" | int 
+fac1 = applier "(" int ")"  | single
+applier = expr
+term = fac | fac (MUL | DIV) fac
+expr = term (ADD | SUB) term
