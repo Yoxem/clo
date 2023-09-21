@@ -96,7 +96,11 @@ exports.m1TType = m1TType;
  */
 let tInt = m1TType(tk.TokenType.INT);
 let tAdd = m1TType(tk.TokenType.I_ADD);
+let tSub = m1TType(tk.TokenType.I_SUB);
 let tMul = m1TType(tk.TokenType.I_MUL);
+let tDiv = m1TType(tk.TokenType.I_DIV);
+let tLParen = m1TType(tk.TokenType.L_PAREN);
+let tRParen = m1TType(tk.TokenType.R_PAREN);
 node_process_1.argv.forEach((val, index) => {
     console.log(`${index}=${val}`);
 });
@@ -136,10 +140,15 @@ function orDo(f1, f2) {
         }
     };
 }
+/**
+ * aux function for midfix operator
+ * @param f function
+ * @param signal the rule name
+ * @returns
+ */
 let midfix = (f, signal) => (x) => {
     var a = f(x);
     if (a._tag == "Some") {
-        let ast_head = slice(a.value.ast, 0, a.value.ast.length - 3);
         let ast_tail = slice(a.value.ast, a.value.ast.length - 3);
         let new_ast = [ast_tail];
         a.value.ast = new_ast;
@@ -147,39 +156,50 @@ let midfix = (f, signal) => (x) => {
     }
     return a;
 };
-/**
- *
- * fac1 = int MUL int
- */
-//let fac1 = midfix((x : TokenMatcheePair)=>
-//            thenDo(thenDo(thenDo(tk.toSome(x), tInt), tMul), tInt));
-let fac1 = (x) => {
-    let a = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tInt), tMul), tInt), "fac1")(x);
+let circumfix = (f, signal) => (x) => {
+    var a = f(x);
+    if (a._tag == "Some") {
+        let inner = a.value.ast[a.value.ast.length - 2];
+        console.log("AST====" + repr(a.value.ast));
+        let ast_middle = [inner];
+        let new_ast = [ast_middle];
+        a.value.ast = new_ast;
+        console.log("+" + signal + "+" + repr(a));
+    }
     return a;
 };
-/**
- *
- * fac2 = int MUL int
- */
+/** fac1 = "(" expr ")" */
+let fac1 = circumfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), expr), tRParen), "fac1");
 let fac2 = tInt;
-/**
- * fac = fac1 | fac2
- */
 let fac = orDo(fac1, fac2);
 /**
  *
- * expr1 = fac ADD fac
+ * term1 = fac (MUL | DIV) fac
  */
-let expr1 = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), fac), tAdd), fac), "expr1");
+let term1 = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), fac), orDo(tMul, tDiv)), fac), "term1");
 /**
- * expr2 = fac
+ *
+ * term2 = int MUL int
  */
-let expr2 = fac;
+let term2 = fac;
+/**
+ * term = term1 | term2
+ */
+let term = orDo(term1, term2);
+/**
+ *
+ * expr1 = term ADD term
+ */
+let expr1 = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), term), orDo(tAdd, tSub)), term), "expr1");
+/**
+ * expr2 = term
+ */
+let expr2 = term;
 /**
  * expr = expr1 | expr2
  */
 let expr = orDo(expr1, expr2);
-let tokens = tk.tokenize("2+3"); //tk.tokenize(argv[2]);
+let tokens = tk.tokenize("(4-(3/4))"); //tk.tokenize(argv[2]);
 let tokensFiltered = tokens.filter((x) => {
     return (x.type != tk.TokenType.NL
         && x.type != tk.TokenType.SP);
@@ -194,5 +214,4 @@ let beta = expr({
     remained: tokensFiltered,
     ast: []
 });
-console.log(repr(wrappedTokens));
 console.log(repr(beta));
