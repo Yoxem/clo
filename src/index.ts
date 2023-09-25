@@ -242,7 +242,7 @@ let midfix = (f : Function, signal? : string) => (x : TokenMatcheePair)=>{
         let new_ast = [ast_tail];
         a.value.ast = new_ast;
 
-        console.log("+"+signal+"+"+repr(a));
+        // console.log("+"+signal+"+"+repr(a));
 
         
     }
@@ -282,7 +282,6 @@ let fac1Appliee = circumfix((x  : TokenMatcheePair) => thenDo(thenDo(thenDo(tk.t
 let fac1 = (x : TokenMatcheePair) => 
     {
         let raw = thenDo(thenDo(toSome(x), single), OnceOrMoreDo(fac1Appliee));
-        console.log("+"+"火鳥"+"+"+repr(raw));
 
         
         
@@ -294,8 +293,6 @@ let fac1 = (x : TokenMatcheePair) =>
             for (var i=1; i<raw.value.ast.length; i++){
                 result = [applyToken, result, raw.value.ast[i]];
             }
-
-            console.log("+"+"hitori"+"+"+repr(result));
 
             if (!Array.isArray(result)){
                 raw.value.ast = [result];
