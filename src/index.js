@@ -225,7 +225,7 @@ let midfix = (f, signal) => (x) => {
         let ast_tail = slice(a.value.ast, a.value.ast.length - 3);
         let new_ast = [ast_tail];
         a.value.ast = new_ast;
-        console.log("+" + signal + "+" + repr(a));
+        // console.log("+"+signal+"+"+repr(a));
     }
     return a;
 };
@@ -256,14 +256,12 @@ let single = orDo(single1, single2);
 let fac1Appliee = circumfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "fac1");
 let fac1 = (x) => {
     let raw = thenDo(thenDo(toSome(x), single), OnceOrMoreDo(fac1Appliee));
-    console.log("+" + "火鳥" + "+" + repr(raw));
     if (raw._tag == "Some") {
         var result = raw.value.ast[0];
         let applyToken = { text: '%apply', ln: 0, col: 0 };
         for (var i = 1; i < raw.value.ast.length; i++) {
             result = [applyToken, result, raw.value.ast[i]];
         }
-        console.log("+" + "hitori" + "+" + repr(result));
         if (!Array.isArray(result)) {
             raw.value.ast = [result];
         }
@@ -303,16 +301,14 @@ let expr2 = term;
  */
 let expr = orDo(expr1, expr2);
 let tokens = tk.tokenize("1");
+let tokens2 = tk.tokenize("1(2)");
+let tokens3 = tk.tokenize("1(2)(3)");
+let tokens4 = tk.tokenize("(3(2))*2+1");
 //let tokens = tk.tokenize("(4-(3/4))");
 //tk.tokenize(argv[2]);
-let tokensFiltered = tokens.filter((x) => {
+let tokensFiltered = tokens4.filter((x) => {
     return (x.type != tk.TokenType.NL
         && x.type != tk.TokenType.SP);
-});
-let wrappedTokens = tk.toSome({
-    matched: [],
-    remained: tokensFiltered,
-    ast: []
 });
 let beta = expr({
     matched: [],

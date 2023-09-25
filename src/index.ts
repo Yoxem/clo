@@ -198,6 +198,7 @@ export function matchAny(m: TokenMatcheePair): tk.Maybe<TokenMatcheePair> {
 }
 
 /**
+ * Danger : Maybe it's not enough to work.
 * @description repeating matching function `f` 
 * zero or more times, like the asterisk `*` in regex `f*` . 
 * @param f : the function to be repeated 0+ times.
@@ -277,7 +278,9 @@ let single = orDo(single1, single2);
 */
 
 
-/** fac = single ["(" single ")"]?  | single */
+/** fac = single ["(" single ")"]?  | single
+ * Issue1 to be fixed.
+ */
 let fac1Appliee = circumfix((x  : TokenMatcheePair) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "fac1");
 let fac1 = (x : TokenMatcheePair) => 
     {
@@ -351,19 +354,18 @@ let expr = orDo(expr1, expr2);
 
 
 let tokens = tk.tokenize("1");
+let tokens2 = tk.tokenize("1(2)");
+let tokens3 = tk.tokenize("1(2)(3)");
+let tokens4 = tk.tokenize("(3(2))*2+1");
 
 //let tokens = tk.tokenize("(4-(3/4))");
 //tk.tokenize(argv[2]);
 
-let tokensFiltered = tokens.filter(
+let tokensFiltered = tokens4.filter(
     (x)=>{return (x.type != tk.TokenType.NL
             && x.type != tk.TokenType.SP)});
 
-let wrappedTokens : tk.Maybe<TokenMatcheePair> = 
-    tk.toSome({
-        matched : [] ,
-        remained : tokensFiltered,
-        ast : []});
+
 
 let beta = expr({
         matched : [] ,

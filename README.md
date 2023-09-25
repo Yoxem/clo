@@ -13,3 +13,4 @@ License: MIT
  - 20230914-15: 追加一寡 tokenizer ê 功能。
  - 20230918: 重新tuì下kàu頂起做parser. add rule
  - 20230921-22:add rule, report issue
+ - 20230925-26: 試驗án-tsuánn解決[issue1](https://kianting.info/pipermail/clo_kianting.info/2023-September/000004.html), iáu-buē成功。
