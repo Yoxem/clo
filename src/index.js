@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.m1TType = void 0;
+exports.OnceOrMoreDo = exports.matchAny = exports.m1TType = exports.tkTreeToSExp = void 0;
 var fs = require('fs');
 const node_process_1 = require("node:process");
 const tk = __importStar(require("./tokenize.js"));
@@ -54,6 +54,28 @@ function slice(x, index, end) {
         throw new Error("the tkTree can't be concated, because it's not an array.");
     }
 }
+/**
+ * convert a `tkTree` AST to S-expr string
+ * @param t the `tkTree`
+ * @returns S-expr String
+ */
+function tkTreeToSExp(t) {
+    var str = "";
+    if (Array.isArray(t)) {
+        let strArray = t.map((x) => tkTreeToSExp(x));
+        str = "(" + strArray.join(" ") + ")";
+    }
+    else {
+        if (t === undefined) {
+            str = "%undefined";
+        }
+        else {
+            str = t.text;
+        }
+    }
+    return str;
+}
+exports.tkTreeToSExp = tkTreeToSExp;
 /**
  * @description
  * match one token type.
@@ -95,6 +117,7 @@ exports.m1TType = m1TType;
  * type int
  */
 let tInt = m1TType(tk.TokenType.INT);
+let tId = m1TType(tk.TokenType.ID);
 let tAdd = m1TType(tk.TokenType.I_ADD);
 let tSub = m1TType(tk.TokenType.I_SUB);
 let tMul = m1TType(tk.TokenType.I_MUL);
@@ -142,6 +165,55 @@ function orDo(f1, f2) {
     };
 }
 /**
+ *
+ * @param m : the `MatcheePair` to be consumed.
+ * @returns if the length of `m.remained` >= 1; consumes the matchee by 1 token
+ *  and wraps it in `Some`,
+ * otherwise, returns `None`.
+ */
+function matchAny(m) {
+    if (m.remained.length >= 1) {
+        return {
+            _tag: "Some", value: {
+                matched: m.matched.concat(m.remained[0]),
+                remained: m.remained.slice(1),
+                ast: [m.remained[0]],
+            }
+        };
+    }
+    else {
+        return { _tag: "None" };
+    }
+}
+exports.matchAny = matchAny;
+/**
+* @description repeating matching function `f`
+* zero or more times, like the asterisk `*` in regex `f*` .
+* @param f : the function to be repeated 0+ times.
+* @returns:the combined function
+*/
+function OnceOrMoreDo(f) {
+    return (x) => {
+        var wrappedOldX = { _tag: "Some", value: x };
+        var wrappedNewX = wrappedOldX;
+        var counter = -1;
+        while (wrappedNewX._tag != "None") {
+            wrappedOldX = wrappedNewX;
+            wrappedNewX = thenDo(wrappedOldX, f);
+            counter += 1;
+        }
+        ;
+        if (counter <= 0) {
+            return { _tag: "None" };
+        }
+        let ast = wrappedOldX.value.ast;
+        wrappedOldX.value.ast = ast.slice(ast.length - counter);
+        console.log(repr(wrappedOldX.value.ast));
+        return wrappedOldX;
+    };
+}
+exports.OnceOrMoreDo = OnceOrMoreDo;
+/**
  * aux function for midfix operator
  * @param f function
  * @param signal the rule name
@@ -174,12 +246,32 @@ let circumfix = (f, signal) => (x) => {
 let single1 = circumfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), expr), tRParen), "fac1");
 let single2 = tInt;
 let single = orDo(single1, single2);
-/** fac1 = single "(" int ")"  | single */
+/** func = single | single "(" single ")"
+ * i.e.
+ *
+ * func = single |  func_aux ( int )
+ *
+*/
+/** fac = single ["(" single ")"]?  | single */
 let fac1Appliee = circumfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "fac1");
 let fac1 = (x) => {
-    let n = thenDo(thenDo(toSome(x), single), fac1Appliee);
-    console.log("+" + "bocchitherock" + "+" + repr(n));
-    return n;
+    let raw = thenDo(thenDo(toSome(x), single), OnceOrMoreDo(fac1Appliee));
+    console.log("+" + "火鳥" + "+" + repr(raw));
+    if (raw._tag == "Some") {
+        var result = raw.value.ast[0];
+        let applyToken = { text: '%apply', ln: 0, col: 0 };
+        for (var i = 1; i < raw.value.ast.length; i++) {
+            result = [applyToken, result, raw.value.ast[i]];
+        }
+        console.log("+" + "hitori" + "+" + repr(result));
+        if (!Array.isArray(result)) {
+            raw.value.ast = [result];
+        }
+        else {
+            raw.value.ast = result;
+        }
+    }
+    return raw;
 };
 let fac2 = single;
 let fac = orDo(fac1, fac2);
@@ -210,7 +302,7 @@ let expr2 = term;
  * expr = expr1 | expr2
  */
 let expr = orDo(expr1, expr2);
-let tokens = tk.tokenize("12(13)(14)");
+let tokens = tk.tokenize("1");
 //let tokens = tk.tokenize("(4-(3/4))");
 //tk.tokenize(argv[2]);
 let tokensFiltered = tokens.filter((x) => {
@@ -227,4 +319,7 @@ let beta = expr({
     remained: tokensFiltered,
     ast: []
 });
+if (beta._tag == "Some") {
+    console.log(tkTreeToSExp(beta.value.ast));
+}
 console.log("RESULT=" + repr(beta));
