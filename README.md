@@ -14,3 +14,10 @@ License: MIT
  - 20230918: 重新tuì下kàu頂起做parser. add rule
  - 20230921-22:add rule, report issue
  - 20230925-26: 試驗án-tsuánn解決[issue1](https://kianting.info/pipermail/clo_kianting.info/2023-September/000004.html), iáu-buē成功。
+   - 凡勢用？
+    ```
+    FuncApp ::= Single FuncAppAux | Single
+    FuncAppAUx ::= FunCallee FuncAppAUx
+    FuncCallee ::= "(" ")" | "(" ARGS ")"
+    ARGS = SINGLE "," ARGS | SINGLE
+    ```
