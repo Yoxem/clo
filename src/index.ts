@@ -261,9 +261,6 @@ let circumfix = (f : Function, signal? : string) => (x : TokenMatcheePair)=>{
     return a;
 }
 
-/**
- * TODO: 12(13)(14) only parsed with only 12(13)
- */
 /** single1 = tInt | "(" expr ")"*/
 let single1 = circumfix((x : TokenMatcheePair) =>
     thenDo(thenDo(thenDo(tk.toSome(x), tLParen), expr), tRParen), "fac1");
@@ -277,40 +274,114 @@ let single = orDo(single1, single2);
  * 
 */
 
+/** callees = "(" args ")" | "(" ")" */
 
-/** fac = single ["(" single ")"]?  | single
+
+let callees1 = circumfix((x : TokenMatcheePair) =>
+    thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "callees1");
+let callees2 = (x: TokenMatcheePair)=>{
+    let ret = thenDo(thenDo(tk.toSome(x), tLParen), tRParen);
+    if (ret._tag == "Some"){
+        let new_ast : tkTree[] = [[]];
+        ret.value.ast = new_ast;
+    }
+    
+    return ret};
+
+let callees = orDo(callees1, callees2);
+
+
+
+/** %apply R combinating token */
+let applyToken = {
+    text: "%apply",
+    type: tk.TokenType.ID,
+    col: 0,
+    ln: 0,
+}
+
+/** facAux = callees facAux |  callees */
+let facAux1 = (x: TokenMatcheePair)=>{
+    var ret = thenDo(thenDo(tk.toSome(x), callees), facAux);
+    if (ret._tag == "Some"){
+        console.log("1232345"+repr(tkTreeToSExp(ret.value.ast[ret.value.ast.length-1])));
+    let last1  = ret.value.ast[ret.value.ast.length-1];
+    let last2  = ret.value.ast[ret.value.ast.length-2];
+
+    
+    let b : tkTree[] = [applyToken];
+    ret.value.ast = [b.concat([last2, last1])];
+    console.log("11111"+repr(tkTreeToSExp(ret.value.ast)));
+
+    };
+
+return ret;}
+let facAux2 = callees;
+let facAux =  orDo(facAux1, facAux2);
+
+
+
+/** fac = single facAux | single
  * Issue1 to be fixed.
  */
-let fac1Appliee = circumfix((x  : TokenMatcheePair) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "fac1");
-let fac1 = (x : TokenMatcheePair) => 
-    {
-        let raw = thenDo(thenDo(toSome(x), single), OnceOrMoreDo(fac1Appliee));
+let fac1 = (x: TokenMatcheePair)=>{
+    var ret = thenDo(thenDo(tk.toSome(x), single),facAux);
+    if(ret._tag == "Some"){
+        console.log("777"+repr(tkTreeToSExp(ret.value.ast)));
+        ret.value.ast = [applyToken, ret.value.ast[ret.value.ast.length-2],
+                        ret.value.ast[ret.value.ast.length-1]];
+        ret.value.ast;
+        rearrangeTree(ret.value.ast);
+        console.log("888"+repr(tkTreeToSExp(ret.value.ast)));
 
-        
-        
-        if (raw._tag == "Some"){
+    }
 
-
-            var result : tkTree  = raw.value.ast[0];
-            let applyToken : tk.Token = {text: '%apply', ln:0, col:0};
-            for (var i=1; i<raw.value.ast.length; i++){
-                result = [applyToken, result, raw.value.ast[i]];
-            }
-
-            if (!Array.isArray(result)){
-                raw.value.ast = [result];
-            }else{
-                raw.value.ast = result;
-            }
-        }
-
-
-        
-    
-        return raw;
-    };
+    return ret;};
 let fac2 = single;
 let fac = orDo(fac1, fac2);
+
+
+/**
+ * rearrangeTree : for applyToken subtree from right-combination to 
+ * left-combination
+ * @input x a ast
+ * @return another ast
+ */
+function rearrangeTree(x: any) : any {
+    
+        if (x !== undefined){
+            for (var i=1;i<x.length;i++){
+                rearrangeTree(x[i]);
+            }
+            console.log("@@"+repr(x[0]));
+
+            if (x[0] == applyToken){
+                if (Array.isArray(x[2]) && x[2][0] == applyToken){
+                    let rl = rearrangeTree(x[2][1]);
+                    let rr = rearrangeTree(x[2][2]);
+                    let l = rearrangeTree(x[1]);
+                    x[0] = applyToken;
+                    x[1] = [applyToken, l, rl];
+                    x[2] = rr;
+                    console.log("@@=="+repr(x));
+
+                    return x;
+                }
+                else{
+                    x[0] = applyToken;
+                    x[1] = rearrangeTree(x[1]);
+                    x[2] = rearrangeTree(x[2]);
+                    console.log("@@=="+repr(x));
+
+
+                    return x;
+                }
+            }
+
+            return x;
+        }
+    }
+        
 
 
 
@@ -356,7 +427,7 @@ let expr = orDo(expr1, expr2);
 let tokens = tk.tokenize("1");
 let tokens2 = tk.tokenize("1(2)");
 let tokens3 = tk.tokenize("1(2)(3)");
-let tokens4 = tk.tokenize("(3(2))*2+1");
+let tokens4 = tk.tokenize("2()");
 
 //let tokens = tk.tokenize("(4-(3/4))");
 //tk.tokenize(argv[2]);
@@ -372,8 +443,12 @@ let beta = expr({
         remained : tokensFiltered,
         ast : []});
 
+
+
 if (beta._tag == "Some"){
+    beta.value.ast = rearrangeTree(beta.value.ast);
     console.log(tkTreeToSExp(beta.value.ast));
+
 }
 
 console.log("RESULT="+repr(beta));
