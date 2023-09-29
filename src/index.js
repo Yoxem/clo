@@ -124,6 +124,7 @@ let tMul = m1TType(tk.TokenType.I_MUL);
 let tDiv = m1TType(tk.TokenType.I_DIV);
 let tLParen = m1TType(tk.TokenType.L_PAREN);
 let tRParen = m1TType(tk.TokenType.R_PAREN);
+let tComma = m1TType(tk.TokenType.COMMA);
 let toSome = tk.toSome;
 node_process_1.argv.forEach((val, index) => {
     console.log(`${index}=${val}`);
@@ -233,27 +234,40 @@ let midfix = (f, signal) => (x) => {
 let circumfix = (f, signal) => (x) => {
     var a = f(x);
     if (a._tag == "Some") {
+        console.log("$$$" + repr(a.value.ast));
         let inner = a.value.ast[a.value.ast.length - 2];
-        let ast_middle = [inner];
+        var ast_middle;
+        if (Array.isArray(inner)) {
+            ast_middle = inner;
+        }
+        else {
+            ast_middle = [inner];
+        }
         let new_ast = [ast_middle];
         a.value.ast = new_ast;
     }
     return a;
 };
 /** single1 = tInt | "(" expr ")"*/
-let single1 = circumfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), expr), tRParen), "fac1");
+let single1 = circumfix((x) => thenDo(thenDo(thenDo(toSome(x), tLParen), expr), tRParen), "fac1");
 let single2 = tInt;
 let single = orDo(single1, single2);
-/** func = single | single "(" single ")"
- * i.e.
- *
- * func = single |  func_aux ( int )
- *
-*/
+/** args = single "," args | single */
+let args1 = (x) => {
+    var ret = thenDo(thenDo(thenDo(toSome(x), single), tComma), args);
+    if (ret._tag == "Some") {
+        let retLength = ret.value.ast.length;
+        ret.value.ast = [[ret.value.ast[retLength - 3]].concat(ret.value.ast[retLength - 1])];
+        console.log("$$" + repr(ret.value.ast));
+    }
+    return ret;
+};
+let args2 = single;
+let args = orDo(args1, args2);
 /** callees = "(" args ")" | "(" ")" */
-let callees1 = circumfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), tLParen), tInt), tRParen), "callees1");
+let callees1 = circumfix((x) => thenDo(thenDo(thenDo(toSome(x), tLParen), args), tRParen), "callees1");
 let callees2 = (x) => {
-    let ret = thenDo(thenDo(tk.toSome(x), tLParen), tRParen);
+    let ret = thenDo(thenDo(toSome(x), tLParen), tRParen);
     if (ret._tag == "Some") {
         let new_ast = [[]];
         ret.value.ast = new_ast;
@@ -270,7 +284,7 @@ let applyToken = {
 };
 /** facAux = callees facAux |  callees */
 let facAux1 = (x) => {
-    var ret = thenDo(thenDo(tk.toSome(x), callees), facAux);
+    var ret = thenDo(thenDo(toSome(x), callees), facAux);
     if (ret._tag == "Some") {
         console.log("1232345" + repr(tkTreeToSExp(ret.value.ast[ret.value.ast.length - 1])));
         let last1 = ret.value.ast[ret.value.ast.length - 1];
@@ -288,7 +302,7 @@ let facAux = orDo(facAux1, facAux2);
  * Issue1 to be fixed.
  */
 let fac1 = (x) => {
-    var ret = thenDo(thenDo(tk.toSome(x), single), facAux);
+    var ret = thenDo(thenDo(toSome(x), single), facAux);
     if (ret._tag == "Some") {
         console.log("777" + repr(tkTreeToSExp(ret.value.ast)));
         ret.value.ast = [applyToken, ret.value.ast[ret.value.ast.length - 2],
@@ -339,7 +353,7 @@ function rearrangeTree(x) {
  *
  * term1 = fac (MUL | DIV) fac
  */
-let term1 = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), fac), orDo(tMul, tDiv)), fac), "term1");
+let term1 = midfix((x) => thenDo(thenDo(thenDo(toSome(x), fac), orDo(tMul, tDiv)), fac), "term1");
 /**
  *
  * term2 = int MUL int
@@ -353,7 +367,7 @@ let term = orDo(term1, term2);
  *
  * expr1 = term ADD term
  */
-let expr1 = midfix((x) => thenDo(thenDo(thenDo(tk.toSome(x), term), orDo(tAdd, tSub)), term), "expr1");
+let expr1 = midfix((x) => thenDo(thenDo(thenDo(toSome(x), term), orDo(tAdd, tSub)), term), "expr1");
 /**
  * expr2 = term
  */
@@ -365,7 +379,7 @@ let expr = orDo(expr1, expr2);
 let tokens = tk.tokenize("1");
 let tokens2 = tk.tokenize("1(2)");
 let tokens3 = tk.tokenize("1(2)(3)");
-let tokens4 = tk.tokenize("2()");
+let tokens4 = tk.tokenize("2()(4)");
 //let tokens = tk.tokenize("(4-(3/4))");
 //tk.tokenize(argv[2]);
 let tokensFiltered = tokens4.filter((x) => {
