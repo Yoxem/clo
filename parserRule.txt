@@ -1,5 +1,8 @@
-single = "(" expr ")" | int 
-fac1 = applier "(" int ")"  | single
-applier = expr
+single = "(" expr ")" | int
+args = single , args | single
+callees = "(" args ")" | "(" ")"
+facAux = callees facAux |  callees
+single facAux | single
+fac = single facAux | single
 term = fac | fac (MUL | DIV) fac
 expr = term (ADD | SUB) term
