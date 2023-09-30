@@ -237,8 +237,14 @@ let circumfix = (f, signal) => (x) => {
         console.log("$$$" + repr(a.value.ast));
         let inner = a.value.ast[a.value.ast.length - 2];
         var ast_middle;
+        // the list should not be (%list) (%apply) (%lambda) etc.
         if (Array.isArray(inner)) {
-            ast_middle = inner;
+            if ('text' in inner[0] && (inner[0].text.slice(0, 1) != "%")) {
+                ast_middle = inner;
+            }
+            else {
+                ast_middle = [inner];
+            }
         }
         else {
             ast_middle = [inner];
@@ -379,7 +385,7 @@ let expr = orDo(expr1, expr2);
 let tokens = tk.tokenize("1");
 let tokens2 = tk.tokenize("1(2)");
 let tokens3 = tk.tokenize("1(2)(3)");
-let tokens4 = tk.tokenize("2()(4)");
+let tokens4 = tk.tokenize("2()(4)(5,6)(7,8,9,10)");
 //let tokens = tk.tokenize("(4-(3/4))");
 //tk.tokenize(argv[2]);
 let tokensFiltered = tokens4.filter((x) => {
