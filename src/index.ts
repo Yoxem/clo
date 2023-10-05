@@ -1,7 +1,8 @@
 var fs = require('fs');
 import jsTokens from "js-tokens";
 import * as util from 'util';
-
+import * as p from 'typescript-parsec';
+import { Token } from 'typescript-parsec';
 /**
  * 
  * # REPRESENTATION
@@ -21,7 +22,7 @@ export function tkTreeToSExp(t: tkTree): string{
         if (t=== undefined){
             str = "%undefined"
         }else{
-            str = t.value;
+            str = t;
         }
     }
 
@@ -35,156 +36,110 @@ let repr = (x : any)=>{return util.inspect(x, {depth: null})};
  * # TYPES
  */
 
-/**
- * TokenPair for tokens' parser combinator
- *
- * matched: the matched (now and before) tokens
- * 
- * remained: tokens to be matched
- * 
- * ast: abstract syntax tree
- */
-export interface TokenPair {
-    matched: jsTokens.Token[]
-    remained: jsTokens.Token[]
-    ast : tkTree[]
-}
-export type Some<T> = { _tag: "Some"; value: T };
-export type None = { _tag: "None" };
-export type Maybe<T> = Some<T> | None;
 
-type Token = jsTokens.Token;
-type tkTree = Token | tkTree[];
+type tkTree = string | tkTree[];
 
-/**
- * 
- * # PARSER UNITS
- */
-function toSome<T>(x:T): Maybe<T>{
-    return {_tag: "Some", value: x};
+enum TokenKind {
+    Seperator,
+    Semicolon,
+    Number,
+    Op,
+    ExprMark,
+    Paren,
+    SpaceNL,
+    Id,
+    Str,
 }
 
 /**
- * like `m ==> f` in ocaml
- * @param m matchee wrapped
- * @param f matching function
- * @returns wrapped result
+ * Parsing
  */
-function thenDo(m : Maybe<TokenPair>, f : Function){
-    if (m._tag == "None"){
-        return m;
-    }else{
-        var a : Maybe<TokenPair> = f(m.value);
-        if (a._tag == "Some"){
-            a.value.ast = m.value.ast.concat(a.value.ast);
-        }
-
-        return a;
-    }
-}
-/**
- * 
- * @param m : the `TokenPair` to be consumed.
- * @returns if the length of `m.remained` >= 1; consumes the matchee by 1 token
- *  and wraps it in `Some`,
- * otherwise, returns `None`.
- */
-export function matchAny(m: TokenPair): Maybe<TokenPair> {
-    if (m.remained.length >= 1) {
-        return {
-            _tag: "Some", value: {
-                matched: m.matched.concat(m.remained[0]),
-                remained: m.remained.slice(1),
-                ast :  [m.remained[0]],
-            }
-        };
-    } else {
-        return { _tag: "None" };
-    }
-}
-
-/**
- * like `f1 | f2` in regex
- * @param f1 the first tried function
- * @param f2 the second tried function
- * @returns wrapped result
- */
-function orDo(f1 : Function, f2 : Function){
-    return (x : TokenPair) =>{
-        let res1 : Maybe<TokenPair> = f1(x);
-        if (res1._tag == "Some"){
-            return res1;
-        }else{
-            let res2 : Maybe<TokenPair> = f2(x);
-            return res2;
-        }
-    } 
-}
-
-/**
- * like regex [^c]
- * @param f input token function. one token only.
- * @returns combined finction
- */
-function notDo(f : Function){
-    return (x : TokenPair) =>{
-        let res1 : Maybe<TokenPair> = f(x);
-        if (res1._tag == "Some"){
-            return {_tag:"None"};
-        }else{
-            let res2 = matchAny(x);
-            return res2;
-        }
-    } 
-}
-
-function matchToken(typeName : string, value? : string):
- (t : TokenPair) => Maybe<TokenPair>{
-    return (t)=>{
-        let headToken = t.remained[0];
-        if (headToken.type != typeName){
-            return {_tag:"None"};
-        }else{
-            if (value === undefined || value == headToken.value){
-                let newTokenPair = {
-                    matched: t.matched.concat(headToken),
-                    remained: t.remained.slice(1),
-                    ast : [headToken]
-                };
-                return {_tag : "Some", value : newTokenPair};
-            }else{
-                return {_tag:"None"};
-            }
-        };
-    }
-};
-
+const lexer = p.buildLexer([
+    [true, /^\d+(\.\d+)?/g, TokenKind.Number],
+    [true, /^\;/g, TokenKind.Semicolon],
+    [true, /^[-][-][-]/g, TokenKind.Seperator],
+    [true, /^[\+\-\*\/\&\|\!\^\<\>\~\=\?]+/g, TokenKind.Op],
+    [true, /^\@+/g, TokenKind.ExprMark],
+    [true, /^[()\[\]{}]/g, TokenKind.Paren],
+    [true, /^["]([\"]|[\\].)*["]/g, TokenKind.Str],
+    [true, /^[']([\']|[\\].)*[']/g, TokenKind.Str],
+    [true, /^[()\[\]{}]/g, TokenKind.Paren],
+    [true, /^[^\s\n\t\r;]+/g, TokenKind.Id],
+    [false, /^(\s|\n|\r|\t)+/g, TokenKind.SpaceNL]
+]);
 
 /**
  * 
  * # TEST
  */
-const tokens = Array.from(jsTokens(
-`import foo from\t 'bar';
-import * as util  from 'util';
+const inputTxt=
+`import ast;
+---
+122`;
 
 
-花非花，霧\\{非霧 。{{foo();}}下
-一句`));
-
-console.log("RESULT="+repr(tokens));
-
-
-var mainTokenPair : TokenPair = {
-    matched : [] ,
-    remained : tokens,
-    ast : []};
-
-let a = thenDo(thenDo(toSome(mainTokenPair), matchToken('IdentifierName')),
-        notDo(matchToken('Punctuator', ';')));
+const PROG = p.rule<TokenKind, tkTree>();
+const UNIT = p.rule<TokenKind, tkTree>();
+const IMPORTS = p.rule<TokenKind, tkTree>();
+const SEMICOLON = p.rule<TokenKind, tkTree>();
 
 
-console.log("RESULT="+repr(a));
-if (a._tag == "Some"){
-    console.log("SEXP="+tkTreeToSExp(a.value.ast));
+let doubleMinus = { type: 'Punctuator', value: '--' };
+let doubleMinus2 = p.str('--');
+const TERM = p.rule<TokenKind, tkTree>();
+
+function applyUnit(value: Token<TokenKind.Number>): tkTree{
+    return value.text;
 }
+
+function applySemiColon(value: Token<TokenKind.Semicolon>): tkTree{
+    return value.text;
+}
+
+function applyParts(first: tkTree,
+                    second: [Token<TokenKind>, tkTree]):tkTree {
+    return ["%clo", first , second[1]];
+}
+
+
+
+
+function applyImports(input: [Token<TokenKind>,Token<TokenKind>[], tkTree]):tkTree{
+    let importTail = input[1].map(x=>x.text);
+    return ["import"].concat(importTail);
+};
+
+/**
+ * PROG : IMPORTS '---' UNIT;
+ */
+PROG.setPattern(
+    p.lrec_sc(IMPORTS, p.seq(p.str('---'), UNIT), applyParts)
+
+)
+
+/**
+ * PROG : 'import' Id* SEMICOLON;
+ */
+IMPORTS.setPattern(
+    p.apply(p.seq(p.str('import'), p.rep_sc(p.tok(TokenKind.Id)), SEMICOLON) , applyImports)
+);
+
+/**
+ * SEMICOLON : ';';
+ */
+SEMICOLON.setPattern(
+    p.apply(p.tok(TokenKind.Semicolon), applySemiColon)
+);
+
+/**
+ * UNIT : Number;
+ */
+UNIT.setPattern(
+    p.apply(p.tok(TokenKind.Number), applyUnit)
+);
+
+let tree = p.expectSingleResult(p.expectEOF(PROG.parse(lexer.parse(inputTxt))));
+
+
+
+console.log("RESULT="+tkTreeToSExp(tree));

@@ -22,14 +22,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.matchAny = exports.tkTreeToSExp = void 0;
+exports.tkTreeToSExp = void 0;
 var fs = require('fs');
-const js_tokens_1 = __importDefault(require("js-tokens"));
 const util = __importStar(require("util"));
+const p = __importStar(require("typescript-parsec"));
 /**
  *
  * # REPRESENTATION
@@ -50,7 +47,7 @@ function tkTreeToSExp(t) {
             str = "%undefined";
         }
         else {
-            str = t.value;
+            str = t;
         }
     }
     return str;
@@ -58,129 +55,65 @@ function tkTreeToSExp(t) {
 exports.tkTreeToSExp = tkTreeToSExp;
 /**inspect the inner of the representation. */
 let repr = (x) => { return util.inspect(x, { depth: null }); };
+var TokenKind;
+(function (TokenKind) {
+    TokenKind[TokenKind["Seperator"] = 0] = "Seperator";
+    TokenKind[TokenKind["Semicolon"] = 1] = "Semicolon";
+    TokenKind[TokenKind["Number"] = 2] = "Number";
+    TokenKind[TokenKind["Op"] = 3] = "Op";
+    TokenKind[TokenKind["ExprMark"] = 4] = "ExprMark";
+    TokenKind[TokenKind["Paren"] = 5] = "Paren";
+    TokenKind[TokenKind["SpaceNL"] = 6] = "SpaceNL";
+    TokenKind[TokenKind["Id"] = 7] = "Id";
+    TokenKind[TokenKind["Str"] = 8] = "Str";
+})(TokenKind || (TokenKind = {}));
 /**
- *
- * # PARSER UNITS
+ * Parsing
  */
-function toSome(x) {
-    return { _tag: "Some", value: x };
-}
-/**
- * like `m ==> f` in ocaml
- * @param m matchee wrapped
- * @param f matching function
- * @returns wrapped result
- */
-function thenDo(m, f) {
-    if (m._tag == "None") {
-        return m;
-    }
-    else {
-        var a = f(m.value);
-        if (a._tag == "Some") {
-            a.value.ast = m.value.ast.concat(a.value.ast);
-        }
-        return a;
-    }
-}
-/**
- *
- * @param m : the `TokenPair` to be consumed.
- * @returns if the length of `m.remained` >= 1; consumes the matchee by 1 token
- *  and wraps it in `Some`,
- * otherwise, returns `None`.
- */
-function matchAny(m) {
-    if (m.remained.length >= 1) {
-        return {
-            _tag: "Some", value: {
-                matched: m.matched.concat(m.remained[0]),
-                remained: m.remained.slice(1),
-                ast: [m.remained[0]],
-            }
-        };
-    }
-    else {
-        return { _tag: "None" };
-    }
-}
-exports.matchAny = matchAny;
-/**
- * like `f1 | f2` in regex
- * @param f1 the first tried function
- * @param f2 the second tried function
- * @returns wrapped result
- */
-function orDo(f1, f2) {
-    return (x) => {
-        let res1 = f1(x);
-        if (res1._tag == "Some") {
-            return res1;
-        }
-        else {
-            let res2 = f2(x);
-            return res2;
-        }
-    };
-}
-/**
- * like regex [^c]
- * @param f input token function. one token only.
- * @returns combined finction
- */
-function notDo(f) {
-    return (x) => {
-        let res1 = f(x);
-        if (res1._tag == "Some") {
-            return { _tag: "None" };
-        }
-        else {
-            let res2 = matchAny(x);
-            return res2;
-        }
-    };
-}
-function matchToken(typeName, value) {
-    return (t) => {
-        let headToken = t.remained[0];
-        if (headToken.type != typeName) {
-            return { _tag: "None" };
-        }
-        else {
-            if (value === undefined || value == headToken.value) {
-                let newTokenPair = {
-                    matched: t.matched.concat(headToken),
-                    remained: t.remained.slice(1),
-                    ast: [headToken]
-                };
-                return { _tag: "Some", value: newTokenPair };
-            }
-            else {
-                return { _tag: "None" };
-            }
-        }
-        ;
-    };
-}
-;
+const lexer = p.buildLexer([
+    [true, /^\d+(\.\d+)?/g, TokenKind.Number],
+    [true, /^\;/g, TokenKind.Semicolon],
+    [true, /^[-][-][-]/g, TokenKind.Seperator],
+    [true, /^[\+\-\*\/\&\|\!\^\<\>\~\=\?]+/g, TokenKind.Op],
+    [true, /^\@+/g, TokenKind.ExprMark],
+    [true, /^[()\[\]{}]/g, TokenKind.Paren],
+    [true, /^["]([\"]|[\\].)*["]/g, TokenKind.Str],
+    [true, /^[']([\']|[\\].)*[']/g, TokenKind.Str],
+    [true, /^[()\[\]{}]/g, TokenKind.Paren],
+    [true, /^[^\s\n\t\r;]+/g, TokenKind.Id],
+    [false, /^(\s|\n|\r|\t)+/g, TokenKind.SpaceNL]
+]);
 /**
  *
  * # TEST
  */
-const tokens = Array.from((0, js_tokens_1.default)(`import; foo from\t 'bar';
-import * as util  from 'util';
-
-
-花非花，霧\\{非霧 。{{foo();}}下
-一句`));
-console.log("RESULT=" + repr(tokens));
-var mainTokenPair = {
-    matched: [],
-    remained: tokens,
-    ast: []
-};
-let a = thenDo(thenDo(toSome(mainTokenPair), matchToken('IdentifierName')), notDo(matchToken('Punctuator', ';')));
-console.log("RESULT=" + repr(a));
-if (a._tag == "Some") {
-    console.log("SEXP=" + tkTreeToSExp(a.value.ast));
+const inputTxt = `import ast;
+---
+122`;
+const PROG = p.rule();
+const UNIT = p.rule();
+const IMPORTS = p.rule();
+const SEMICOLON = p.rule();
+let doubleMinus = { type: 'Punctuator', value: '--' };
+let doubleMinus2 = p.str('--');
+const TERM = p.rule();
+function applyUnit(value) {
+    return value.text;
 }
+function applySemiColon(value) {
+    return value.text;
+}
+function applyParts(first, second) {
+    return ["%clo", first, second[1]];
+}
+PROG.setPattern(p.lrec_sc(IMPORTS, p.seq(p.str('---'), UNIT), applyParts));
+function applyImports(input) {
+    let importTail = input[1].map(x => x.text);
+    return ["import"].concat(importTail);
+}
+;
+IMPORTS.setPattern(p.apply(p.seq(p.str('import'), p.rep_sc(p.tok(TokenKind.Id)), SEMICOLON), applyImports));
+SEMICOLON.setPattern(p.apply(p.tok(TokenKind.Semicolon), applySemiColon));
+UNIT.setPattern(p.apply(p.tok(TokenKind.Number), applyUnit));
+let tree = p.expectSingleResult(p.expectEOF(PROG.parse(lexer.parse(inputTxt))));
+console.log("RESULT=" + tkTreeToSExp(tree));
