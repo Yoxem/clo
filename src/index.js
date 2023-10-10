@@ -100,12 +100,12 @@ import you as john;
 
 臺中市\\\@
 
-政府
-@2+2==4;
+公園
+@1+2==3;
 
 console.log("122");@
 
-人民
+山頂
 `;
 const PROG = p.rule();
 const SEGMENT = p.rule();
@@ -202,6 +202,5 @@ SEGMENT.setPattern(p.alt(p.apply(p.rep_sc(NOT_AT_TEXT), applyText), p.apply(p.se
  * CONTENT : SEGMENT*
  */
 CONTENT.setPattern(p.apply(p.rep(SEGMENT), applyContent));
-console.log(repr(lexer.parse(inputTxt)));
 let tree = p.expectSingleResult(p.expectEOF(PROG.parse(lexer.parse(inputTxt))));
 console.log("RESULT=" + tkTreeToSExp(tree));
