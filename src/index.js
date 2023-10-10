@@ -62,43 +62,65 @@ var TokenKind;
     TokenKind[TokenKind["Number"] = 2] = "Number";
     TokenKind[TokenKind["Op"] = 3] = "Op";
     TokenKind[TokenKind["ExprMark"] = 4] = "ExprMark";
-    TokenKind[TokenKind["Paren"] = 5] = "Paren";
-    TokenKind[TokenKind["SpaceNL"] = 6] = "SpaceNL";
-    TokenKind[TokenKind["Id"] = 7] = "Id";
-    TokenKind[TokenKind["Str"] = 8] = "Str";
+    TokenKind[TokenKind["ExcapeAt"] = 5] = "ExcapeAt";
+    TokenKind[TokenKind["Paren"] = 6] = "Paren";
+    TokenKind[TokenKind["SpaceNL"] = 7] = "SpaceNL";
+    TokenKind[TokenKind["Id"] = 8] = "Id";
+    TokenKind[TokenKind["Str"] = 9] = "Str";
+    TokenKind[TokenKind["Comment"] = 10] = "Comment";
 })(TokenKind || (TokenKind = {}));
 /**
  * Parsing
  */
 const lexer = p.buildLexer([
     [true, /^\d+(\.\d+)?/g, TokenKind.Number],
+    [true, /^\\\@/g, TokenKind.ExcapeAt],
+    [true, /^\/\*([^/]|\/[^*])*\*\//g, TokenKind.Comment],
     [true, /^\;/g, TokenKind.Semicolon],
     [true, /^[-][-][-]/g, TokenKind.Seperator],
     [true, /^[\+\-\*\/\&\|\!\^\<\>\~\=\?]+/g, TokenKind.Op],
-    [true, /^\@+/g, TokenKind.ExprMark],
+    [true, /^\@/g, TokenKind.ExprMark],
     [true, /^[()\[\]{}]/g, TokenKind.Paren],
     [true, /^["]([\"]|[\\].)*["]/g, TokenKind.Str],
     [true, /^[']([\']|[\\].)*[']/g, TokenKind.Str],
     [true, /^[()\[\]{}]/g, TokenKind.Paren],
-    [true, /^[^\s\n\t\r;]+/g, TokenKind.Id],
-    [false, /^(\s|\n|\r|\t)+/g, TokenKind.SpaceNL]
+    [true, /^[^\/\\\@\s\n\t\r;]+/g, TokenKind.Id],
+    [true, /^(\s|\n|\r|\t)+/g, TokenKind.SpaceNL],
 ]);
 /**
  *
  * # TEST
  */
-const inputTxt = `import ast;
+const inputTxt = `import a as b; /*bacourt*/
+/* ba choir 
+ipsum lorem*/
+
+import you as john;
 ---
-122`;
+
+臺中市\\\@
+
+政府
+@2+2==4;
+
+console.log("122");@
+
+人民
+`;
 const PROG = p.rule();
-const UNIT = p.rule();
+const SEGMENT = p.rule();
+const IMPORT = p.rule();
 const IMPORTS = p.rule();
 const SEMICOLON = p.rule();
+const EXCAPE_AT = p.rule();
+const NOT_AT_TEXT = p.rule();
+const CONTENT = p.rule();
 let doubleMinus = { type: 'Punctuator', value: '--' };
 let doubleMinus2 = p.str('--');
 const TERM = p.rule();
-function applyUnit(value) {
-    return value.text;
+function applySegment(input) {
+    let unpackedInnerExprs = input[1].map((x) => { return x.text; });
+    return ["%exprs", unpackedInnerExprs];
 }
 function applySemiColon(value) {
     return value.text;
@@ -106,14 +128,80 @@ function applySemiColon(value) {
 function applyParts(first, second) {
     return ["%clo", first, second[1]];
 }
-PROG.setPattern(p.lrec_sc(IMPORTS, p.seq(p.str('---'), UNIT), applyParts));
-function applyImports(input) {
+function applyComment(value) {
+    return [value.text];
+}
+function applyImport(input) {
     let importTail = input[1].map(x => x.text);
     return ["import"].concat(importTail);
 }
 ;
-IMPORTS.setPattern(p.apply(p.seq(p.str('import'), p.rep_sc(p.tok(TokenKind.Id)), SEMICOLON), applyImports));
+/*
+function applyImportComment(input: [Token<TokenKind>,Token<TokenKind>[],
+    tkTree, Token<TokenKind.Comment>]) : tkTree{
+    let importTail = input[1].map(x=>x.text);
+    let comment = [input[3].text];
+    return ["import"].concat(importTail).concat(comment);
+};*/
+function applyImports(input) {
+    let resultBody = [input[0]].concat(input[1]);
+    let resultWrapper = ["%import", resultBody];
+    return resultWrapper;
+}
+;
+function applyNotAtText(value) {
+    if (value.text == "\\\@") {
+        return '@';
+    }
+    else {
+        return value.text;
+    }
+}
+;
+function applyText(input) {
+    return ["%text", input];
+}
+;
+function applyContent(input) {
+    return ["%content", input];
+}
+;
+function applySpaceNL(value) {
+    return value.text;
+}
+/**
+ * IMPORTEE:  Number, Op, Paren, Id, Str, Comment,
+ */
+let IMPORTEE = p.alt(p.tok(TokenKind.Number), p.tok(TokenKind.Op), p.tok(TokenKind.Paren), p.tok(TokenKind.Id), p.tok(TokenKind.Str), p.tok(TokenKind.SpaceNL), p.tok(TokenKind.Comment));
+let NOT_AT = p.alt(p.tok(TokenKind.Seperator), p.tok(TokenKind.Semicolon), p.tok(TokenKind.Number), p.tok(TokenKind.ExcapeAt), p.tok(TokenKind.Op), p.tok(TokenKind.Paren), p.tok(TokenKind.SpaceNL), p.tok(TokenKind.Id), p.tok(TokenKind.Str), p.tok(TokenKind.Comment));
+/**
+ * PROG : IMPORTS '---' CONTENT;
+ */
+PROG.setPattern(p.lrec_sc(IMPORTS, p.seq(p.str('---'), CONTENT), applyParts));
+/**
+ * NOT_AT_TEXT : NOT_AT
+ */
+NOT_AT_TEXT.setPattern(p.apply(NOT_AT, applyNotAtText));
+IMPORTS.setPattern(p.apply(p.seq(IMPORT, p.rep(IMPORT)), applyImports));
+/**
+ * IMPORT :
+ * 'import' IMPORTEE* SEMICOLON |
+ * COMMENT |
+ */
+IMPORT.setPattern(p.alt(p.apply(p.seq(p.str('import'), p.rep_sc(IMPORTEE), SEMICOLON), applyImport), p.apply(p.tok(TokenKind.Comment), applyComment), p.apply(p.tok(TokenKind.SpaceNL), applySpaceNL)));
+/**
+ * SEMICOLON : ';';
+ */
 SEMICOLON.setPattern(p.apply(p.tok(TokenKind.Semicolon), applySemiColon));
-UNIT.setPattern(p.apply(p.tok(TokenKind.Number), applyUnit));
+/**
+ * SEGMENT : '@' NOT_AT* '@' |
+ * (NOT_AT_TEXT | EXCAPE_AT)*
+ */
+SEGMENT.setPattern(p.alt(p.apply(p.rep_sc(NOT_AT_TEXT), applyText), p.apply(p.seq(p.str('@'), p.rep(NOT_AT), p.str('@')), applySegment)));
+/**
+ * CONTENT : SEGMENT*
+ */
+CONTENT.setPattern(p.apply(p.rep(SEGMENT), applyContent));
+console.log(repr(lexer.parse(inputTxt)));
 let tree = p.expectSingleResult(p.expectEOF(PROG.parse(lexer.parse(inputTxt))));
 console.log("RESULT=" + tkTreeToSExp(tree));
