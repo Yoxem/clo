@@ -26,3 +26,4 @@ License: MIT
  - 20230930：tîng khí parser, using `js-token`.
  - 20231006: tîng siá parser, using `ts-parsec`.
  - 20231010: 初步完成tsit ê階段ê Parser`。
+ - 20231012: clo->js converter successfully (maybe.)
