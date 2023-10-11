@@ -6,8 +6,8 @@ import * as clo from "clo";
 cl = clo.initClo();
 /* CLO:  end of head*/
 /* ba choir 
-ipsum lorem*/
-
+ipsum lorem*/;
+import * as dublin from 'dublin'; 
 
 /* CLO:  beginning of middle part*/
 cl.mainText = /* CLO: end of middle part*/

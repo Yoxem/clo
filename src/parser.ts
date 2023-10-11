@@ -273,7 +273,7 @@ export function treeToJS(tree : tkTree): string{
             let importsText = imports.map(
                 (x)=>{
                     if (Array.isArray(x)){
-                        return x.join('');
+                        return x.join('') + ';';
                     }
                     else{
                         return x;

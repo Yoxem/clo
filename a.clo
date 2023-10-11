@@ -1,6 +1,6 @@
 /* ba choir 
 ipsum lorem*/
-
+import * as dublin from 'dublin'; 
 ---
 我是一隻古怪的虎斑貓。擅長喵喵叫。
 the quick brown fox jumps over the lazy dog.
