@@ -21,5 +21,7 @@ export async function pdfGenerate(){
 
     const pdfBytes = await pdfDoc.save();
 
-    writeFileSync('/tmp/test.pdf', pdfBytes);
+    writeFileSync('/tmp/test2.pdf', pdfBytes);
 }
+
+pdfGenerate();

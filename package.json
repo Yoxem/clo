@@ -41,7 +41,7 @@
     "harfbuzzjs": "^0.3.3",
     "js-tokens": "^8.0.2",
     "minimist": "^1.2.8",
-    "npx": "^3.0.0",
+    "npx": "^10.2.2",
     "pdf-lib": "^1.17.1",
     "typescript-parsec": "^0.3.4"
   }

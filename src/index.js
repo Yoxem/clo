@@ -37,6 +37,10 @@ INPUT_FILE\tan input .clo file
 ## Parameters
 ---
 --output-js\tgenerated the output middle JS file
+
+
+Report bugs to: clo@kianting.info
+clo home page: <https://kianting.info/wiki/w/Project:Clo>
 `;
 processArgv(argv, helpDesc);
 /**

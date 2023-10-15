@@ -26,7 +26,8 @@ function pdfGenerate() {
         page.drawText("x:20, y:100 天地人", { x: 20, y: 100, font: font2 });
         page.drawText("عربي", { x: 50, y: 150, font: font3 });
         const pdfBytes = yield pdfDoc.save();
-        (0, fs_1.writeFileSync)('/tmp/test.pdf', pdfBytes);
+        (0, fs_1.writeFileSync)('/tmp/test2.pdf', pdfBytes);
     });
 }
 exports.pdfGenerate = pdfGenerate;
+pdfGenerate();
