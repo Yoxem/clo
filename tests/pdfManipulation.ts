@@ -1,35 +1,51 @@
 import * as canva from "../src/canva.js";
-import { PDFDocument } from "pdf-lib";
-var fontkit = require('@pdf-lib/fontkit');
-import {writeFileSync} from 'fs';
+import {createWriteStream} from 'fs';
+import PDFDocument from 'pdfkit';
 
 let hanziFont = {
-    name : "思源黑體",
+    family : "Noto Sans CJK TC",
     size : 12,
+    textWeight : canva.TextWeight.REGULAR,
+    textStyle : canva.TextStyle.ITALIC,
+}
+
+let romanFont = {
+    family : "FreeSans",
+    size : 15,
     textWeight : canva.TextWeight.BOLD,
     textStyle : canva.TextStyle.ITALIC,
 }
 
+let arabicFont = {
+    family : "noto sans arabic",
+    size : 16,
+    textWeight : canva.TextWeight.REGULAR,
+    textStyle : canva.TextStyle.NORMAL,
+}
+
+
 
 async function foo (){
 
-let c = await  PDFDocument.create();
+    const doc = new PDFDocument();
 
-let clo =  await {
-    mainText : ["123"],
-    mainFontStyle : hanziFont,
-    PDFCanvas : c,
 
-}
+    let clo =  await {
+        mainText : ["123 一隻貓跑過來"],
+        mainFontStyle : hanziFont,
+        PDFCanvas : doc,
 
-clo.PDFCanvas.registerFontkit(fontkit);
-const page =  clo.PDFCanvas.addPage();
+    }
+    clo.PDFCanvas.pipe(createWriteStream('/tmp/output.pdf'));
 
-await canva.putText(clo, clo.mainText[0],hanziFont, 0, 100, 200);
 
-const pdfBytes = await clo.PDFCanvas.save();
 
-writeFileSync('/tmp/test.pdf', pdfBytes);
+    await canva.putText(clo, clo.mainText[0],hanziFont, 0, 100, 200);
+    await canva.putText(clo, "ag téastáil" ,romanFont, 0, 100, 300);
+    await canva.putText(clo, "اَلْعَرَبِيَّةُ‎" ,arabicFont, 0, 100, 350);
+
+
+    doc.end();
 
 };
 

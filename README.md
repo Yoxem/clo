@@ -28,4 +28,4 @@ License: MIT
  - 20231010: 初步完成tsit ê階段ê Parser`。
  - 20231012: clo->js converter successfully (maybe.)
  - 20231016：basic font guessing and `putText` function
-  - issues : the CJK font can't be in .ttc format. (upstream-problem)
+ - 20231023-24:fix .ttc bug.

@@ -1,7 +1,6 @@
 const { execSync } = require('child_process');
-import { PDFDocument, RGB, ColorTypes } from "pdf-lib";
 import { readFileSync, writeFileSync } from "fs";
-import fontkit from '@pdf-lib/fontkit';
+import "pdfkit";
 
 
 export interface CloCommand {
@@ -9,27 +8,28 @@ export interface CloCommand {
     args : TextStreamUnit[], 
 }
 
-export type TextStreamUnit = string | CloCommand;
 
+export type TextStreamUnit = string | CloCommand;
+export type PDFDocument = PDFKit.PDFDocument;
 /**
  * a clo document
  */
 export interface Clo{
     mainText : TextStreamUnit[],
     mainFontStyle? : FontStyle,
-    PDFCanvas : PDFDocument,
+    PDFCanvas : PDFDocument;
 
 }
 
 /**
  * Font Style Interface
- * name : eg. "FreeSans"
+ * family : eg. "FreeSans"
  * size : in px, not in pt.
  * textWeight : TextWeight.REGULAR ,etc
  * textWeight : TextStyle.ITALIC ,etc
  */
 export interface FontStyle{
-    name : string,
+    family : string,
     size : number, 
     textWeight : TextWeight,
     textStyle : TextStyle,
@@ -47,59 +47,41 @@ export enum TextStyle{
     OBLIQUE,
 };
 
+export interface fontPathPSNamePair{
+    path : string,
+    psName : string,
+}
+
 /**
- * guess the font path of a font style with fontconfig's commands
+ * guess the font path and postscript name of a font style with fontconfig's commands
  * @param style the font style
- * @returns the font path in string, if found none or .ttc, return a empty string.
+ * @returns pair of the font path and postscript name.
  */
-export function fontStyleTofontPath(style : FontStyle) : string{
+export function fontStyleTofont(style : FontStyle) : fontPathPSNamePair{
     try {
-        let fcMatchOut = execSync(
-            `fc-match "${style.name}":${TextWeight[style.textWeight]}:`+
-            `${TextStyle[style.textStyle]}`);
-        
-        let fontFileName : string = fcMatchOut.toString().match(/^[^:]+/g)[0];
+        let fcMatchCommand = `fc-match "${style.family}":${TextWeight[style.textWeight]}:`+
+        `${TextStyle[style.textStyle]}` +` postscriptname file`;
 
-        if (fontFileName.match(/[.]ttc$/g)){
-            console.log("WARNING: the program doesn't support .ttc font format!\n"+
-                "Font file name: "+
-                fontFileName);
-            return "";
-        }
+        let fcMatchOut = execSync(fcMatchCommand);
+        let matched = fcMatchOut
+                            .toString()
+                            .match(/\:file=(.+):postscriptname=(.+)\n/);
 
-        let fcListOut = execSync(
-            `fc-list | grep ${fontFileName}`);
-        let fontPath : string = fcListOut.toString().match(/^[^:]+/g)[0];
-        return fontPath;
+        let fontPath : string = matched[1];
+        let psName : string = matched[2];
+
+        return {path: fontPath, psName : psName};
+
+
     } catch (error) {
-        console.log("WARNING: You should install `fontconfig` to select the font.");
-        return "";
+        console.log(`WARNING: You should install "fontconfig" to select the font.
+         Detail of the error:` + error);
+    
+        return {path: "", psName : ""};
     }
 };
 
-export function hexToRGB(hex : string) : RGB{
-    let matched = hex.match(/^#?([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
 
-    var result : RGB ;
-    if (!matched){
-        console.log("WARNING: the hex color code is not valid. set to #000000")
-        result = {
-            type : ColorTypes.RGB,
-            red: 0,
-            green: 0,
-            blue: 0, 
-        }
-    }else{
-        result = {
-            type : ColorTypes.RGB,
-            red: parseInt(matched[1], 16),
-            green: parseInt(matched[2], 16),
-            blue: parseInt(matched[3], 16)
-      };
-    }
-
-    return result;
-}
 
 /**
  * put text in a clo canva.
@@ -113,29 +95,26 @@ export function hexToRGB(hex : string) : RGB{
  */
 export async function putText(clo : Clo, str : string, sty : FontStyle,
     pageNo : number, x : number, y : number): Promise<Clo>{
-    
-    clo.PDFCanvas.registerFontkit(fontkit);
-    let canvaPage =  clo.PDFCanvas.getPage(pageNo);
 
+    let fontInfo = fontStyleTofont(sty);
 
-    const fontBytes = readFileSync(fontStyleTofontPath(sty));
-    const fontEmbed =  await clo.PDFCanvas.embedFont(fontBytes);
-
-    var textColor : RGB;
-    if (sty.color === undefined){
-        textColor =  hexToRGB("#000000");
-    }else{
-        textColor =  hexToRGB(sty.color);
+    if (fontInfo.path.match(/\.ttc$/g)){
+        var middle = clo.PDFCanvas
+        .font(fontInfo.path, fontInfo.psName)
+        .fontSize(sty.size);}
+    else{
+        var middle = clo.PDFCanvas
+        .font(fontInfo.path)
+        .fontSize(sty.size);  
     }
 
-    let drawTextOptions = {
-        x : x,
-        y : canvaPage.getHeight() - y,
-        font : fontEmbed,
-        size : sty.size,
-        color : textColor};
+    if (sty.color !== undefined){
+        middle.fill(sty.color);
+    }
+    
+    middle.text(str,  x, y);
 
-    canvaPage.drawText(str, drawTextOptions);
+    clo.PDFCanvas = middle;
 
     return clo;
 };

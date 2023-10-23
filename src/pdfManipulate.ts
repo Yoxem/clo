@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { PDFDocument } from "pdf-lib";
-var fontkit = require('@pdf-lib/fontkit');
+var fontkit = require('pdf-fontkit');
 
 export async function pdfGenerate(){
 

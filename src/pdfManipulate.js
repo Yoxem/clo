@@ -12,7 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.pdfGenerate = void 0;
 const fs_1 = require("fs");
 const pdf_lib_1 = require("pdf-lib");
-var fontkit = require('@pdf-lib/fontkit');
+var fontkit = require('pdf-fontkit');
 function pdfGenerate() {
     return __awaiter(this, void 0, void 0, function* () {
         const pdfDoc = yield pdf_lib_1.PDFDocument.create();
