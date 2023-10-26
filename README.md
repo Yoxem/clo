@@ -29,3 +29,27 @@ License: MIT
  - 20231012: clo->js converter successfully (maybe.)
  - 20231016：basic font guessing and `putText` function
  - 20231023-24:fix .ttc bug.
+
+ ## 之後的做法
+  - 先做一個前處理註冊器，註冊下列的前處理
+    - 中英文間距
+    - 換行點
+    - 空白轉為 [glue]
+  - 前處理完成字串後，必須要：
+    - 算出字元的Box
+    - 利用 frame/box 資訊分行、分頁
+    - 然後算出每個Box的x, y, page
+    - 最後納入排版
+
+## 排版語法：
+
+使用lisp表示，但其實是陣列
+```lisp
+  (hglue 寬度 伸展值)
+  (vglue 高度 伸展值)
+  (breakpoint 原始模式 斷行模式)
+  (em 數字)
+  (ex 數字)
+  (span {"font-family" : "Noto Sans" , "font-size" : 16 })
+  (vbox 高度 內容)
+```

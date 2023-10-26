@@ -31,7 +31,7 @@ export function tkTreeToSExp(t: tkTree): string{
     return str;
 }*/
 
-type tkTree = string | tkTree[];
+export type tkTree = string | tkTree[];
 
 enum TokenKind {
     Seperator, // ---
@@ -97,6 +97,10 @@ function applySemiColon(value: Token<TokenKind.Semicolon>): tkTree{
 function applyParts(first: tkTree,
                     second: [Token<TokenKind>, tkTree]):tkTree {
     return ["%clo", first , second[1]];
+}
+
+function applyPartsWithoutImport(parsed: [Token<TokenKind>, tkTree]):tkTree {
+return ["%clo", "" , parsed[1]];
 }
 
 
@@ -171,10 +175,12 @@ let NOT_AT = p.alt(p.tok(TokenKind.Seperator),
     );
 
 /**
- * PROG : IMPORTS '---' CONTENT;
+ * PROG : IMPORTS '---' CONTENT | '---' CONTNENT
  */
 PROG.setPattern(
-    p.lrec_sc(IMPORTS, p.seq(p.str('---'), CONTENT), applyParts)
+    p.alt(
+        p.lrec_sc(IMPORTS, p.seq(p.str('---'), CONTENT), applyParts),
+        p.apply(p.seq(p.str('---'), CONTENT), applyPartsWithoutImport))
 
 )
 
@@ -239,9 +245,10 @@ CONTENT.setPattern(
 let outputHead = `
 /* clo, a typesetting engine, generated JS file*/
 /* CLO:  beginning of head*/
-import * as clo from "clo";
 
-cl = clo.initClo();
+let cloLib = require("./src/libclo/index.js");
+let clo = new cloLib.Clo();
+
 /* CLO:  end of head*/\n`
 
 /**
@@ -249,11 +256,11 @@ cl = clo.initClo();
  */
 let outputMiddle =`
 /* CLO:  beginning of middle part*/
-cl.mainText = /* CLO: end of middle part*/
+clo.mainStream = /* CLO: end of middle part*/
 `
 let outputEnd =`
 /* CLO: beginning of end part*/
-cl.generatePdf();
+clo.generatePdf();
 /*CLO : end of end part*/
 `
 
@@ -261,6 +268,7 @@ cl.generatePdf();
  * Convert `tree` (ASTTree; `tkTree`) to JS Code.
  */
 export function treeToJS(tree : tkTree): string{
+
     let head = tree[0];
     if (head == "%clo"){
         let totalResult = outputHead + treeToJS(tree[1]) +
@@ -290,7 +298,7 @@ export function treeToJS(tree : tkTree): string{
         let tail = tree[1];
         if (Array.isArray(tail)){
             if (tail.length == 1){
-                return treeToJS(tail);
+                return tail.map((x)=>treeToJS(x)).join("').concat('")+ ";";
             }
             let tailStrings = tail.map((x)=>treeToJS(x));
             return "(" + tailStrings.join(').concat(') + ");";
@@ -304,7 +312,7 @@ export function treeToJS(tree : tkTree): string{
             let decoratedArray = textContents
                                 .flatMap(x=>String(x))
                                 .map(x=>x.replace("\`","\\\`"));
-
+            
             return "[`" + decoratedArray.join("\`, \`") + "`]";
         }else{
             let decorated = textContents.replace("\`","\\\`");
