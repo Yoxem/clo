@@ -29,6 +29,8 @@ License: MIT
  - 20231012: clo->js converter successfully (maybe.)
  - 20231016：basic font guessing and `putText` function
  - 20231023-24:fix .ttc bug.
+ - 20231026-27 : clo basic interface, preprocessor of stream of text,
+  add cjk-english splitter, etc.
 
  ## 之後的做法
   - 先做一個前處理註冊器，註冊下列的前處理
