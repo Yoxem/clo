@@ -32,7 +32,9 @@
  - 20231023-24:fix .ttc bug.
  - 20231026-27 : clo basic interface, preprocessor of stream of text,
   add cjk-english splitter, etc.
- - 20231029: hyphenating for english.
+ - 20231029-30: hyphenating for english.
+ - TODO：利用harfbuzz算文字的對應px寬度
+
 
  ## 之後的做法
   - 先做一個前處理註冊器，註冊下列的前處理
