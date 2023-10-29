@@ -33,7 +33,7 @@ export function tkTreeToSExp(t: tkTree): string{
 
 export type tkTree = string | tkTree[];
 
-enum TokenKind {
+export enum TokenKind {
     Seperator, // ---
     Semicolon, // ;
     Number,
@@ -50,7 +50,7 @@ enum TokenKind {
 /**
  * Parsing
  */
-const lexer = p.buildLexer([
+export const lexer = p.buildLexer([
     [true, /^\d+(\.\d+)?/g, TokenKind.Number],
     [true, /^[\\][\\]/g, TokenKind.Op],
     [true, /^\\\@/g, TokenKind.ExcapeAt],
@@ -75,41 +75,42 @@ const lexer = p.buildLexer([
 
 
 
-const PROG = p.rule<TokenKind, tkTree>();
-const SEGMENT = p.rule<TokenKind, tkTree>();
-const IMPORT = p.rule<TokenKind, tkTree>();
-const IMPORTS = p.rule<TokenKind, tkTree>();
-const SEMICOLON = p.rule<TokenKind, tkTree>();
-const NOT_AT_TEXT = p.rule<TokenKind, tkTree>();
-const CONTENT = p.rule<TokenKind, tkTree>();
+export const PROG = p.rule<TokenKind, tkTree>();
+export const SEGMENT = p.rule<TokenKind, tkTree>();
+export const IMPORT = p.rule<TokenKind, tkTree>();
+export const IMPORTS = p.rule<TokenKind, tkTree>();
+export const SEMICOLON = p.rule<TokenKind, tkTree>();
+export const NOT_AT_TEXT = p.rule<TokenKind, tkTree>();
+export const CONTENT = p.rule<TokenKind, tkTree>();
 
 
-function applySegment(input: [Token<TokenKind>, Token<TokenKind>[],
+export function applySegment(input: [Token<TokenKind>, Token<TokenKind>[],
         Token<TokenKind>]): tkTree[]{
     let unpackedInnerExprs = input[1].map((x)=>{return x.text});
     return ["%exprs", unpackedInnerExprs];
 }
 
-function applySemiColon(value: Token<TokenKind.Semicolon>): tkTree{
+export function applySemiColon(value: Token<TokenKind.Semicolon>): tkTree{
     return value.text;
 }
 
-function applyParts(first: tkTree,
-                    second: [Token<TokenKind>, tkTree]):tkTree {
-    return ["%clo", first , second[1]];
+export function applyParts(first: tkTree, 
+                    second: [Token<TokenKind>, Token<TokenKind>, tkTree]):tkTree {
+    return ["%clo", first , second[2]];
 }
 
-function applyPartsWithoutImport(parsed: [Token<TokenKind>, tkTree]):tkTree {
-return ["%clo", "" , parsed[1]];
+export function applyPartsWithoutImport(
+        parsed: [Token<TokenKind>, Token<TokenKind>, tkTree]):tkTree {
+return ["%clo", "" , parsed[2]];
 }
 
 
-function applyComment(value: Token<TokenKind.Comment>): tkTree[]{
+export function applyComment(value: Token<TokenKind.Comment>): tkTree[]{
     return [value.text];
 }
 
 
-function applyImport(input: [Token<TokenKind>,Token<TokenKind>[], tkTree]) : tkTree{
+export function applyImport(input: [Token<TokenKind>,Token<TokenKind>[], tkTree]) : tkTree{
     let importTail = input[1].map(x=>x.text);
     return ["import"].concat(importTail);
 };
@@ -123,7 +124,7 @@ function applyImportComment(input: [Token<TokenKind>,Token<TokenKind>[],
     return ["import"].concat(importTail).concat(comment);
 };*/
 
-function applyImports(input : [tkTree, tkTree[]]): tkTree{
+export function applyImports(input : [tkTree, tkTree[]]): tkTree{
     let resultBody = [input[0]].concat(input[1]);
     let resultWrapper = ["%import", resultBody];
     return resultWrapper;
@@ -132,29 +133,29 @@ function applyImports(input : [tkTree, tkTree[]]): tkTree{
 
 
 
-function applyNotAtText(value : Token<TokenKind>): tkTree{
+export function applyNotAtText(value : Token<TokenKind>): tkTree{
     if (value.text == "\\\@"){
         return '@';
     }
     else{return value.text;}
 };
 
-function applyText (input : tkTree): tkTree[]{
+export function applyText (input : tkTree): tkTree[]{
     return ["%text", input];
 };
 
-function applyContent(input : tkTree[]): tkTree[]{
+export function applyContent(input : tkTree[]): tkTree[]{
     return ["%content", input];
 };
 
-function applySpaceNL(value : Token<TokenKind.SpaceNL>): tkTree{
+export function applySpaceNL(value : Token<TokenKind.SpaceNL>): tkTree{
     return value.text;
 }
 
 /**
  * IMPORTEE:  Number, Op, Paren, Id, Str, Comment,
  */
-let IMPORTEE = p.alt(p.tok(TokenKind.Number),
+export let IMPORTEE = p.alt(p.tok(TokenKind.Number),
     p.tok(TokenKind.Op),
     p.tok(TokenKind.Paren),
     p.tok(TokenKind.Id),
@@ -162,7 +163,7 @@ let IMPORTEE = p.alt(p.tok(TokenKind.Number),
     p.tok(TokenKind.SpaceNL),
     p.tok(TokenKind.Comment));
 
-let NOT_AT = p.alt(p.tok(TokenKind.Seperator),
+export let NOT_AT = p.alt(p.tok(TokenKind.Seperator),
     p.tok(TokenKind.Semicolon),
     p.tok(TokenKind.Number),
     p.tok(TokenKind.ExcapeAt),
@@ -175,12 +176,12 @@ let NOT_AT = p.alt(p.tok(TokenKind.Seperator),
     );
 
 /**
- * PROG : IMPORTS '---' CONTENT | '---' CONTNENT
+ * PROG : IMPORTS '---' NEWLINE CONTENT | '---' NEWLINE CONTNENT
  */
 PROG.setPattern(
     p.alt(
-        p.lrec_sc(IMPORTS, p.seq(p.str('---'), CONTENT), applyParts),
-        p.apply(p.seq(p.str('---'), CONTENT), applyPartsWithoutImport))
+        p.lrec_sc(IMPORTS, p.seq(p.str('---'), p.str("\n"), CONTENT), applyParts),
+        p.apply(p.seq(p.str('---'), p.str("\n"), CONTENT), applyPartsWithoutImport))
 
 )
 
@@ -242,7 +243,7 @@ CONTENT.setPattern(
 /**
  * the head part of the output JS code : before import
  */
-let outputHead = `
+export let outputHead = `
 /* clo, a typesetting engine, generated JS file*/
 /* CLO:  beginning of head*/
 
@@ -254,11 +255,15 @@ let clo = new cloLib.Clo();
 /**
  * the middle part of the output JS code : between import part and content part
  */
-let outputMiddle =`
+export let outputMiddle =`
 /* CLO:  beginning of middle part*/
 clo.mainStream = /* CLO: end of middle part*/
 `
-let outputEnd =`
+
+/**
+ * the end part of the output JS code : after content part
+ */
+export let outputEnd =`
 /* CLO: beginning of end part*/
 clo.generatePdf();
 /*CLO : end of end part*/
@@ -346,6 +351,9 @@ export function treeToJS(tree : tkTree): string{
  * `inputText` to `tkTree` (ASTTree) 
  */
 export function inputTextToTree(inputText : string){
-return p.expectSingleResult(
-    p.expectEOF(PROG.parse(lexer.parse(inputText))));
+    // force convert Windows newline to Linux newline
+    inputText = inputText.replace("\r\n", "\n");
+
+    return p.expectSingleResult(
+        p.expectEOF(PROG.parse(lexer.parse(inputText))));
 }

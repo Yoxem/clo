@@ -23,16 +23,16 @@ export interface Clo{
 
 /**
  * Font Style Interface
- * family : eg. "FreeSans"
- * size : in px, not in pt.
- * textWeight : TextWeight.REGULAR ,etc
- * textWeight : TextStyle.ITALIC ,etc
+ * - family : eg. "FreeSans"
+ * - size : in px, not in pt.
+ * - textWeight : TextWeight.REGULAR ,etc
+ * - fontStyle : FontStyle.ITALIC ,etc
  */
-export interface FontStyle{
+export interface TextStyle{
     family : string,
     size : number, 
     textWeight : TextWeight,
-    textStyle : TextStyle,
+    fontStyle : FontStyle,
     color? : string,
 };
 
@@ -41,7 +41,7 @@ export enum TextWeight {
     BOLD,
   };
 
-export enum TextStyle{
+export enum FontStyle{
     NORMAL,
     ITALIC,
     OBLIQUE,
@@ -57,10 +57,10 @@ export interface fontPathPSNamePair{
  * @param style the font style
  * @returns pair of the font path and postscript name.
  */
-export function fontStyleTofont(style : FontStyle) : fontPathPSNamePair{
+export function fontStyleTofont(style : TextStyle) : fontPathPSNamePair{
     try {
         let fcMatchCommand = `fc-match "${style.family}":${TextWeight[style.textWeight]}:`+
-        `${TextStyle[style.textStyle]}` +` postscriptname file`;
+        `${FontStyle[style.fontStyle]}` +` postscriptname file`;
 
         let fcMatchOut = execSync(fcMatchCommand);
         let matched = fcMatchOut
@@ -93,7 +93,7 @@ export function fontStyleTofont(style : FontStyle) : fontPathPSNamePair{
  * @param y base y-point from top
  * @returns a new updated clo object
  */
-export async function putText(clo : Clo, str : string, sty : FontStyle,
+export async function putText(clo : Clo, str : string, sty : TextStyle,
     pageNo : number, x : number, y : number): Promise<Clo>{
 
     let fontInfo = fontStyleTofont(sty);

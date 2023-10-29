@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from "fs";
-import { PDFDocument } from "pdf-lib";
+/*import { readFileSync, writeFileSync } from "fs";
+import { PDFDocument } from "pdfkit";
 var fontkit = require('pdf-fontkit');
 
 export async function pdfGenerate(){
@@ -25,3 +25,5 @@ export async function pdfGenerate(){
 }
 
 pdfGenerate();
+
+*/

@@ -1,7 +1,8 @@
 # clo
-another personal draught of a typesetting language and engine.
-website: https://kianting.info/wiki/w/Project:Clo
-License: MIT 
+ - another personal draught of a typesetting language and engine.
+ - website: https://kianting.info/wiki/w/Project:Clo
+ - license: MIT 
+ - issue tracking mailing list: `clo@kianting.info`
 
 ## changing journal
  - 20230904 建立 thenDo、matchRange的函數、refactor harfbuzzjs 以及libpdf 等測試界面
@@ -31,6 +32,7 @@ License: MIT
  - 20231023-24:fix .ttc bug.
  - 20231026-27 : clo basic interface, preprocessor of stream of text,
   add cjk-english splitter, etc.
+ - 20231029: hyphenating for english.
 
  ## 之後的做法
   - 先做一個前處理註冊器，註冊下列的前處理
@@ -43,15 +45,20 @@ License: MIT
     - 然後算出每個Box的x, y, page
     - 最後納入排版
 
-## 排版語法：
+## 排版語法
 
 使用lisp表示，但其實是陣列
 ```lisp
   (hglue 寬度 伸展值)
   (vglue 高度 伸展值)
-  (breakpoint 原始模式 斷行模式)
+  (bp 原始模式 斷行模式) ; breakpoint
+  (nl) ; newline
   (em 數字)
   (ex 數字)
   (span {"font-family" : "Noto Sans" , "font-size" : 16 })
   (vbox 高度 內容)
 ```
+
+## How to generate documents
+ - `typedoc /path/to/index.js [/path/to/index2.js ...]`
+the generated page will be stored in `/src`.

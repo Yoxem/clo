@@ -23,10 +23,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.processArgv = exports.helpDesc = void 0;
 var fs = require('fs');
 var argv = require('minimist')(process.argv.slice(2));
 const parser = __importStar(require("./parser.js"));
-let helpDesc = `
+/**
+ * help for inputing `--help` parameter.
+ */
+exports.helpDesc = `
 clo: clo INPUT_FILE --output-js OUTPUT_JS_FILE
 
 \ta little typesetter powered by TypeScript/Javascript.
@@ -42,7 +46,7 @@ INPUT_FILE\tan input .clo file
 Report bugs to: clo@kianting.info
 clo home page: <https://kianting.info/wiki/w/Project:Clo>
 `;
-processArgv(argv, helpDesc);
+processArgv(argv, exports.helpDesc);
 /**
  * processing the passed `argv` (arguments)
  */
@@ -72,3 +76,4 @@ function processArgv(argv, helpDesc) {
         });
     }
 }
+exports.processArgv = processArgv;

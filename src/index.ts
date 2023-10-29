@@ -3,8 +3,10 @@ var argv : any = require('minimist')(process.argv.slice(2));
 
 import * as parser from "./parser.js";
 
-
-let helpDesc =
+/**
+ * help for inputing `--help` parameter.
+ */
+export let helpDesc =
 `
 clo: clo INPUT_FILE --output-js OUTPUT_JS_FILE
 
@@ -28,7 +30,7 @@ processArgv(argv, helpDesc);
  * processing the passed `argv` (arguments)
  */
 
-function processArgv(argv : any, helpDesc : string){
+export function processArgv(argv : any, helpDesc : string){
     let inputFile : string[] = argv['_'];
     let outputJSFile : string | true = argv['output-js'];
 

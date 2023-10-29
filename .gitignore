@@ -3,3 +3,4 @@ node_modules
 /tests/*.js
 .vscode
 activate.sh
+docs/.nojekyll

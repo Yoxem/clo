@@ -6,21 +6,21 @@ let hanziFont = {
     family : "Noto Sans CJK TC",
     size : 12,
     textWeight : canva.TextWeight.REGULAR,
-    textStyle : canva.TextStyle.ITALIC,
+    fontStyle : canva.FontStyle.ITALIC,
 }
 
 let romanFont = {
     family : "FreeSans",
     size : 15,
     textWeight : canva.TextWeight.BOLD,
-    textStyle : canva.TextStyle.ITALIC,
+    fontStyle : canva.FontStyle.ITALIC,
 }
 
 let arabicFont = {
     family : "noto sans arabic",
     size : 16,
     textWeight : canva.TextWeight.REGULAR,
-    textStyle : canva.TextStyle.NORMAL,
+    fontStyle : canva.FontStyle.NORMAL,
 }
 
 
@@ -32,7 +32,7 @@ async function foo (){
 
     let clo =  await {
         mainText : ["123 一隻貓跑過來"],
-        mainFontStyle : hanziFont,
+        mainTextStyle : hanziFont,
         PDFCanvas : doc,
 
     }
