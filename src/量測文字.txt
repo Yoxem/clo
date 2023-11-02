@@ -1,0 +1,62 @@
+import * as fontkit from "fontkit";
+var font = await fontkit.openSync('/home/yoxem/桌面/TMP/ts-playground/aliputtat/LinLibertine_DR.otf');
+var run = font.layout('a̍h',undefined, undefined, undefined, "ltr");
+
+for (var i=0;i<=2;i++){
+console.log(run.glyphs[i]._metrics);
+console.log(run.glyphs[i].bbox); // bounding box
+console.log(run.glyphs[i].advanceWidth);
+}
+
+
+/*結果：
+
+假設文字大小為16(px)（=12pt），則下面的數字單位為
+16/1000 px = [文字pt值]*(4/3)/1000 px
+454 即 454*16/1000 px；1140即1140*16/1000 px等等。
+*/
+
+{
+  advanceWidth: 454, // 游標前進的長度
+  advanceHeight: 1140, // 游標往下的長度
+  leftBearing: 42, 
+  topBearing: 475
+}
+$f34600ab9d7f70d8$export$2e2bcd8739ae039 {
+  minX: 42, // 文字最左邊的x座標
+  minY: -10, // 文字最下邊的y座標
+  maxX: 441, // 文字最右邊的座標
+  maxY: 419 // 文字最上的座標
+
+}
+//文字glyph字圖寬度 = (441-42)*16/1000 px
+//文字glyph字圖高度 = (419-(-10))*16/1000 px
+
+
+454
+{
+  advanceWidth: 0,
+  advanceHeight: 1140,
+  leftBearing: -181,
+  topBearing: 184
+}
+$f34600ab9d7f70d8$export$2e2bcd8739ae039 {
+  minX: -181,
+  minY: 548,
+  maxX: -127,
+  maxY: 710
+}
+0
+{
+  advanceWidth: 511,
+  advanceHeight: 1140,
+  leftBearing: 18,
+  topBearing: 196
+}
+$f34600ab9d7f70d8$export$2e2bcd8739ae039 {
+  minX: 18.5,
+  minY: -5,
+  maxX: 499.75,
+  maxY: 698
+}
+511
