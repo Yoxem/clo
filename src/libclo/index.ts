@@ -1,7 +1,8 @@
-import { isKeyObject, isStringObject } from "util/types";
+import { isBoxedPrimitive, isKeyObject, isStringObject } from "util/types";
 import {tkTree} from "../parser";
-import {FontStyle, TextStyle, TextWeight} from "../canva";
+import {FontStyle, TextStyle, TextWeight, fontStyleTofont} from "../canva";
 import { JSDOM } from "jsdom";
+import * as fontkit from "fontkit";
 
 /**
  * TYPES
@@ -30,13 +31,21 @@ export interface FrameBox extends Box{
     baseLineskip : number | null,
 }
 
+export interface CharBox extends Box{
+    minX: number,
+    maxX: number,
+    minY: number,
+    maxY: number,
+
+}
+
 /**
  * a basic Box
  * - x :
  * - y : 
  * - textStyle :
  * - direction :
- * - width :
+ * - width : x_advance
  * - content :
  */
 export interface Box{
@@ -257,45 +266,75 @@ export function hyphenTkTree(arr : tkTree, lang: string) : tkTree{
  * @param preprocessed 
  * @param defaultFontStyle 
  */
-export function calculateTextWidthHeight(preprocessed : tkTree, style : TextStyle): void {
-    var dom = new JSDOM(`<!DOCTYPE html><html><head></head>
-    <body><canvas id="canvas"></canvas></body></html>`);
+export async function calculateTextWidthHeight(element : tkTree, style : TextStyle): Promise<any> {
+    var res = [];
     
-    try {
-        let canvas  = dom.window.document.getElementById("canvas");
-        console.log(canvas);
-
-        /*if (!(canvas instanceof HTMLElement)){
-            throw new Error('the <canvas="canvas"> in the jsdom\'s DOM is not found.');
-            
-        }*/
-
-        let context = (<HTMLCanvasElement>canvas).getContext("2d");
-        console.log(context);
-        if (context == null){
-            throw new Error('`canvas.getContext("2d");` can\'t be executed.');
-            
-        }
-
-        context.font = `normal normal ${style.size}px ${style.family}`;
-        console.log(context.font);
-        let txt = `Hello john`;
-        console.log(txt);
-        let measured = context.measureText(txt);
-        let width = measured.width;
-        let height = measured.actualBoundingBoxAscent;
-        let depth = measured.actualBoundingBoxDescent;
-
-        console.log("width: "+width);
-        console.log("height: "+height);
-        console.log("depth: "+depth);
-
-
-    } catch (error) {
-        console.log("Exception "+error);
+    for (var i=0; i<element.length; i++){
+        res.push(await calculateTextWidthHeightAux(element[i], style));
     }
+
+    console.log(res);
+
+    return res;
+}
+
+
+/**
+ * calculate the text width and Height with a given `TextStyle` 
+ * @param preprocessed 
+ * @param defaultFontStyle 
+ */
+export async function calculateTextWidthHeightAux(element : tkTree, style : TextStyle): Promise<any> {
+    var result : any = [];
     
 
+
+    let fontPair = fontStyleTofont(style);
+    if (fontPair.path.match(/\.ttc$/)){
+        var font = await fontkit.openSync(fontPair.path, fontPair.psName);
+    }
+    else{
+        var font = await fontkit.openSync(fontPair.path);
+    }
+    if (!Array.isArray(element)){
+        var run = font.layout(element, undefined, undefined, undefined, "ltr");
+
+        
+
+        for (var j=0;j<run.glyphs.length;j++){
+            let runGlyphsItem = run.glyphs[j];
+
+
+            let item : CharBox = {
+                x : null,
+                y : null,
+                textStyle : style,
+                direction : Direction.LTR,
+                width : (runGlyphsItem.advanceWidth)*(style.size)/1000,
+                height : (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY)*(style.size)/1000,
+                content : element[j],
+                minX : runGlyphsItem.bbox.minX,
+                maxX : runGlyphsItem.bbox.maxX,
+                minY : runGlyphsItem.bbox.minY,
+                maxY : runGlyphsItem.bbox.maxY
+            }
+
+            result.push(item);
+
+        }
+    return result;
+
+
+        
+
+    }else if(element[0] == "bp"){
+        let beforeNewLine = await calculateTextWidthHeightAux(element[1], style);
+        let afterNewLine = await calculateTextWidthHeightAux(element[2], style);
+
+        return ["bp",  beforeNewLine,  afterNewLine];
+    }else{
+        return calculateTextWidthHeight(element[1], style);
+    }
 }
 
 

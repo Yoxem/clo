@@ -1,8 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Clo = exports.calculateTextWidthHeight = exports.hyphenTkTree = exports.filterEmptyString = exports.spacesToBreakpoint = exports.hyphenForClo = exports.splitCJKV = exports.twoReturnsToNewline = exports.ptToPx = exports.cjkvRegexPattern = exports.cjkvBlocksInRegex = exports.defaultFrameStyle = exports.defaultTextStyle = exports.A4_IN_PX = exports.Direction = void 0;
+exports.Clo = exports.calculateTextWidthHeightAux = exports.calculateTextWidthHeight = exports.hyphenTkTree = exports.filterEmptyString = exports.spacesToBreakpoint = exports.hyphenForClo = exports.splitCJKV = exports.twoReturnsToNewline = exports.ptToPx = exports.cjkvRegexPattern = exports.cjkvBlocksInRegex = exports.defaultFrameStyle = exports.defaultTextStyle = exports.A4_IN_PX = exports.Direction = void 0;
 const canva_1 = require("../canva");
-const jsdom_1 = require("jsdom");
+const fontkit = __importStar(require("fontkit"));
 /**
  * TYPES
  */
@@ -206,38 +238,64 @@ exports.hyphenTkTree = hyphenTkTree;
  * @param preprocessed
  * @param defaultFontStyle
  */
-function calculateTextWidthHeight(preprocessed, style) {
-    var dom = new jsdom_1.JSDOM(`<!DOCTYPE html><html><head></head>
-    <body><canvas id="canvas"></canvas></body></html>`);
-    try {
-        let canvas = dom.window.document.getElementById("canvas");
-        console.log(canvas);
-        /*if (!(canvas instanceof HTMLElement)){
-            throw new Error('the <canvas="canvas"> in the jsdom\'s DOM is not found.');
-            
-        }*/
-        let context = canvas.getContext("2d");
-        console.log(context);
-        if (context == null) {
-            throw new Error('`canvas.getContext("2d");` can\'t be executed.');
+function calculateTextWidthHeight(element, style) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var res = [];
+        for (var i = 0; i < element.length; i++) {
+            res.push(yield calculateTextWidthHeightAux(element[i], style));
         }
-        context.font = `normal normal 10pt ${style.family}`;
-        console.log(context.font);
-        let txt = `Hello john`;
-        console.log(txt);
-        let measured = context.measureText(txt);
-        let width = measured.width;
-        let height = measured.actualBoundingBoxAscent;
-        let depth = measured.actualBoundingBoxDescent;
-        console.log("width: " + width);
-        console.log("height: " + height);
-        console.log("depth: " + depth);
-    }
-    catch (error) {
-        console.log("Exception " + error);
-    }
+        console.log(res);
+        return res;
+    });
 }
 exports.calculateTextWidthHeight = calculateTextWidthHeight;
+/**
+ * calculate the text width and Height with a given `TextStyle`
+ * @param preprocessed
+ * @param defaultFontStyle
+ */
+function calculateTextWidthHeightAux(element, style) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var result = [];
+        let fontPair = (0, canva_1.fontStyleTofont)(style);
+        if (fontPair.path.match(/\.ttc$/)) {
+            var font = yield fontkit.openSync(fontPair.path, fontPair.psName);
+        }
+        else {
+            var font = yield fontkit.openSync(fontPair.path);
+        }
+        if (!Array.isArray(element)) {
+            var run = font.layout(element, undefined, undefined, undefined, "ltr");
+            for (var j = 0; j < run.glyphs.length; j++) {
+                let runGlyphsItem = run.glyphs[j];
+                let item = {
+                    x: null,
+                    y: null,
+                    textStyle: style,
+                    direction: Direction.LTR,
+                    width: (runGlyphsItem.advanceWidth) * (style.size) / 1000,
+                    height: (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY) * (style.size) / 1000,
+                    content: element[j],
+                    minX: runGlyphsItem.bbox.minX,
+                    maxX: runGlyphsItem.bbox.maxX,
+                    minY: runGlyphsItem.bbox.minY,
+                    maxY: runGlyphsItem.bbox.maxY
+                };
+                result.push(item);
+            }
+            return result;
+        }
+        else if (element[0] == "bp") {
+            let beforeNewLine = yield calculateTextWidthHeightAux(element[1], style);
+            let afterNewLine = yield calculateTextWidthHeightAux(element[2], style);
+            return ["bp", beforeNewLine, afterNewLine];
+        }
+        else {
+            return calculateTextWidthHeight(element[1], style);
+        }
+    });
+}
+exports.calculateTextWidthHeightAux = calculateTextWidthHeightAux;
 /**
  * whole document-representing class
  */
