@@ -33,7 +33,7 @@
  - 20231026-27 : clo basic interface, preprocessor of stream of text,
   add cjk-english splitter, etc.
  - 20231029-30: hyphenating for english.
- - TODO：利用harfbuzz算文字的對應px寬度
+ - 20231105-06: 利用fontkit算文字的對應px寬度 initially pushed.
 
 
  ## 之後的做法
