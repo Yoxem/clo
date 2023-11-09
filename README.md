@@ -34,7 +34,7 @@
   add cjk-english splitter, etc.
  - 20231029-30: hyphenating for english.
  - 20231105-06: 利用fontkit算文字的對應px寬度 initially pushed.
-
+ - 20231109-10: Keng-kái oa̍h-chōa ián-sǹg-hoat.
 
  ## 之後的做法
   - 先做一個前處理註冊器，註冊下列的前處理

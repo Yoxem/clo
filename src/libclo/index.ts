@@ -3,6 +3,8 @@ import {tkTree} from "../parser";
 import {FontStyle, TextStyle, TextWeight, fontStyleTofont} from "../canva";
 import { JSDOM } from "jsdom";
 import * as fontkit from "fontkit";
+import * as util from "node:util";
+import * as breakLines from "./breakLines";
 
 /**
  * TYPES
@@ -20,6 +22,21 @@ export enum Direction{
     TTB,
     BTT,
 }
+
+/**
+ * Horizonal glue.
+ * - stretchFactor : the stretch factor in float
+ */
+export interface HGlue{
+    stretchFactor: number
+}
+
+export interface BreakPoint{
+    original : BoxesItem,
+    newLined : BoxesItem  
+}
+
+export type BoxesItem = HGlue | Box | BreakPoint | BoxesItem[] ;
 
 /**
  * frame box is a subclass of box
@@ -197,7 +214,8 @@ export function spacesToBreakpoint(arr : tkTree, clo : Clo) : tkTree{
     for (let i = 0; i < arr.length; i++){
         var item = arr[i];
         if (!Array.isArray(item) && item.match(spacePattern)){
-            result.push([ 'bp', item, "" ]); // push a newline command to the result `tkTree`
+            // push a breakpoint command to the result `tkTree`
+            result.push([ 'bp', [["hglue", "0.1"], item] , "" ]); 
         }
         else{
             result.push(item);
@@ -266,14 +284,14 @@ export function hyphenTkTree(arr : tkTree, lang: string) : tkTree{
  * @param preprocessed 
  * @param defaultFontStyle 
  */
-export async function calculateTextWidthHeight(element : tkTree, style : TextStyle): Promise<any> {
+export async function calculateTextWidthHeight(element : tkTree, style : TextStyle): Promise<BoxesItem[]> {
     var res = [];
     
     for (var i=0; i<element.length; i++){
         res.push(await calculateTextWidthHeightAux(element[i], style));
     }
 
-    console.log(res);
+    res = res.flat();
 
     return res;
 }
@@ -284,8 +302,8 @@ export async function calculateTextWidthHeight(element : tkTree, style : TextSty
  * @param preprocessed 
  * @param defaultFontStyle 
  */
-export async function calculateTextWidthHeightAux(element : tkTree, style : TextStyle): Promise<any> {
-    var result : any = [];
+export async function calculateTextWidthHeightAux(element : tkTree, style : TextStyle): Promise<BoxesItem> {
+    var result : BoxesItem = [];
     
 
 
@@ -328,12 +346,29 @@ export async function calculateTextWidthHeightAux(element : tkTree, style : Text
         
 
     }else if(element[0] == "bp"){
-        let beforeNewLine = await calculateTextWidthHeightAux(element[1], style);
-        let afterNewLine = await calculateTextWidthHeightAux(element[2], style);
 
-        return ["bp",  beforeNewLine,  afterNewLine];
-    }else{
-        return calculateTextWidthHeight(element[1], style);
+        var beforeNewLine = await calculateTextWidthHeightAux(element[1], style);
+        if (Array.isArray(beforeNewLine)){
+            beforeNewLine = beforeNewLine.flat();
+        }
+
+        let afterNewLine = await calculateTextWidthHeightAux(element[2], style);
+        if (Array.isArray(afterNewLine)){
+            afterNewLine = afterNewLine.flat();
+        }
+
+        let breakPointNode : BreakPoint = {
+            original : beforeNewLine,
+            newLined : afterNewLine,
+        }
+
+        return breakPointNode;
+    }else if(element[0] == "hglue" && !Array.isArray(element[1])){
+        let hGlue : HGlue = {stretchFactor : parseFloat(element[1])}
+        return hGlue;
+    }
+    else{
+        return calculateTextWidthHeight(element, style);
     }
 }
 
@@ -392,7 +427,7 @@ export class Clo{
         this.preprocessors.push(f);
     }
 
-    public generatePdf(){
+    public async generatePdf(){
         // preprocessed
         var preprocessed = this.mainStream;
         for (var i = 0; i<this.preprocessors.length; i++){
@@ -401,10 +436,11 @@ export class Clo{
         // generate the width and height of the stream
 
         let defaultFontStyle : TextStyle = this.attrs["defaultFrameStyle"].textStyle;
-        calculateTextWidthHeight(preprocessed, defaultFontStyle);
+        let a = await calculateTextWidthHeight(preprocessed, defaultFontStyle);
 
         // TODO
-        console.log(preprocessed);
+        console.log(util.inspect(a, true, 100));
+        console.log(breakLines.totalCost(a,3,100));
     }
 
     

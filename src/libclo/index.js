@@ -35,6 +35,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Clo = exports.calculateTextWidthHeightAux = exports.calculateTextWidthHeight = exports.hyphenTkTree = exports.filterEmptyString = exports.spacesToBreakpoint = exports.hyphenForClo = exports.splitCJKV = exports.twoReturnsToNewline = exports.ptToPx = exports.cjkvRegexPattern = exports.cjkvBlocksInRegex = exports.defaultFrameStyle = exports.defaultTextStyle = exports.A4_IN_PX = exports.Direction = void 0;
 const canva_1 = require("../canva");
 const fontkit = __importStar(require("fontkit"));
+const util = __importStar(require("node:util"));
+const breakLines = __importStar(require("./breakLines"));
 /**
  * TYPES
  */
@@ -177,7 +179,8 @@ function spacesToBreakpoint(arr, clo) {
     for (let i = 0; i < arr.length; i++) {
         var item = arr[i];
         if (!Array.isArray(item) && item.match(spacePattern)) {
-            result.push(['bp', item, ""]); // push a newline command to the result `tkTree`
+            // push a breakpoint command to the result `tkTree`
+            result.push(['bp', [["hglue", "0.1"], item], ""]);
         }
         else {
             result.push(item);
@@ -244,7 +247,7 @@ function calculateTextWidthHeight(element, style) {
         for (var i = 0; i < element.length; i++) {
             res.push(yield calculateTextWidthHeightAux(element[i], style));
         }
-        console.log(res);
+        res = res.flat();
         return res;
     });
 }
@@ -286,12 +289,26 @@ function calculateTextWidthHeightAux(element, style) {
             return result;
         }
         else if (element[0] == "bp") {
-            let beforeNewLine = yield calculateTextWidthHeightAux(element[1], style);
+            var beforeNewLine = yield calculateTextWidthHeightAux(element[1], style);
+            if (Array.isArray(beforeNewLine)) {
+                beforeNewLine = beforeNewLine.flat();
+            }
             let afterNewLine = yield calculateTextWidthHeightAux(element[2], style);
-            return ["bp", beforeNewLine, afterNewLine];
+            if (Array.isArray(afterNewLine)) {
+                afterNewLine = afterNewLine.flat();
+            }
+            let breakPointNode = {
+                original: beforeNewLine,
+                newLined: afterNewLine,
+            };
+            return breakPointNode;
+        }
+        else if (element[0] == "hglue" && !Array.isArray(element[1])) {
+            let hGlue = { stretchFactor: parseFloat(element[1]) };
+            return hGlue;
         }
         else {
-            return calculateTextWidthHeight(element[1], style);
+            return calculateTextWidthHeight(element, style);
         }
     });
 }
@@ -334,16 +351,19 @@ class Clo {
         this.preprocessors.push(f);
     }
     generatePdf() {
-        // preprocessed
-        var preprocessed = this.mainStream;
-        for (var i = 0; i < this.preprocessors.length; i++) {
-            preprocessed = this.preprocessors[i](preprocessed, this);
-        }
-        // generate the width and height of the stream
-        let defaultFontStyle = this.attrs["defaultFrameStyle"].textStyle;
-        calculateTextWidthHeight(preprocessed, defaultFontStyle);
-        // TODO
-        console.log(preprocessed);
+        return __awaiter(this, void 0, void 0, function* () {
+            // preprocessed
+            var preprocessed = this.mainStream;
+            for (var i = 0; i < this.preprocessors.length; i++) {
+                preprocessed = this.preprocessors[i](preprocessed, this);
+            }
+            // generate the width and height of the stream
+            let defaultFontStyle = this.attrs["defaultFrameStyle"].textStyle;
+            let a = yield calculateTextWidthHeight(preprocessed, defaultFontStyle);
+            // TODO
+            console.log(util.inspect(a, true, 100));
+            console.log(breakLines.totalCost(a, 3, 100));
+        });
     }
 }
 exports.Clo = Clo;
