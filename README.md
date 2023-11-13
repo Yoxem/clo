@@ -35,6 +35,7 @@
  - 20231029-30: hyphenating for english.
  - 20231105-06: 利用fontkit算文字的對應px寬度 initially pushed.
  - 20231109-10: Keng-kái oa̍h-chōa ián-sǹg-hoat.
+ - 20231113: the algorithm is basically fixed, and make a `bigFrame` to prepare for convert to boxes and positions.
 
  ## 之後的做法
   - 先做一個前處理註冊器，註冊下列的前處理

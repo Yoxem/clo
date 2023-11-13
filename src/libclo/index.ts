@@ -438,13 +438,132 @@ export class Clo{
         let defaultFontStyle : TextStyle = this.attrs["defaultFrameStyle"].textStyle;
         let a = await calculateTextWidthHeight(preprocessed, defaultFontStyle);
 
+        let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
         // TODO
-        console.log(util.inspect(a, true, 100));
-        console.log(breakLines.totalCost(a,3,100));
+        //console.log(breakLineAlgorithms.totalCost(a,70));
+        let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, 70);
+
+        console.log(this.segmentedNodesToFrameBox(segmentedNodes, <FrameBox>this.attrs["defaultFrameStyle"]));
+    }
+
+    segmentedNodesToFrameBox(segmentedNodes : BoxesItem[][], frame : FrameBox) : Box{
+        let baseLineskip = frame.baseLineskip;
+        let boxArrayEmpty  : Box[] = [];
+        let bigBox : Box = {
+            x : frame.x,
+            y : frame.y,
+            textStyle :  frame.textStyle,
+            direction : frame.direction,
+            width : frame.width,
+            height : frame.height,
+            content : boxArrayEmpty,
+        }
+
+        var bigBoxContent : Box[] = boxArrayEmpty;
+
+        let segmentedNodesFixed = segmentedNodes.map((x)=>this.removeBreakPoints
+(x).flat());
+        let segmentedNodeUnglue = segmentedNodesFixed.map((x)=>this.removeGlue(x, frame).flat());
+        
+        for (var i=0; i<segmentedNodesFixed.length-1; i++){
+            var currentLineSkip = baseLineskip;
+            var glyphMaxHeight = this.getGlyphMaxHeight(segmentedNodesFixed[i]);
+            if (currentLineSkip === null || glyphMaxHeight >currentLineSkip ){
+                currentLineSkip = glyphMaxHeight;
+            }
+
+            var currentLineBox : Box = {
+                x : null,
+                y : null,
+                textStyle : defaultTextStyle,
+                direction : frame.directionInsideLine,
+                width :  frame.width,
+                height : currentLineSkip,
+                content : <Box[]>segmentedNodeUnglue[i],
+            }
+
+            bigBoxContent.push(currentLineBox);
+
+        }
+
+        bigBox.content = bigBoxContent;
+
+        return bigBox;
+    }
+
+    /**
+     * get the max height of the glyph`[a, b, c]`
+     * @param nodeLine the node line [a, b, c, ...]
+     * @returns 
+     */
+    getGlyphMaxHeight(nodeLine : BoxesItem[]) : number{
+        let segmentedNodeLineHeight = nodeLine.map((x : BoxesItem)=>{if ("height" in x && x.height > 0.0){return x.height}else{return 0.0}});
+        let maxHeight = Math.max(...segmentedNodeLineHeight);
+        return maxHeight;
+    }
+
+    removeGlue(nodeLine : BoxesItem[], frame : FrameBox) : BoxesItem[]{
+        let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
+        let glueRemoved = nodeLine.filter((x)=>!breakLineAlgorithms.isHGlue(x));
+        let onlyGlue = nodeLine.filter((x)=>breakLineAlgorithms.isHGlue(x));
+        let sumStretchFactor = onlyGlue.map((x)=>{if("stretchFactor" in x){ return x.stretchFactor} else{return 0;}})
+            .reduce((acc, cur)=>acc+cur , 0);
+
+        let glueRemovedWidth = glueRemoved.map((x)=>{if("width" in x){ return x.width} else{return 0;}})
+            .reduce((acc, cur)=>acc+cur , 0);
+        let offset = frame.width - glueRemovedWidth;
+        var res = [];
+        for (var i=0; i<nodeLine.length; i++){
+            var ele = nodeLine[i];
+            if (breakLineAlgorithms.isHGlue(ele)){
+                let tmp : Box = {
+                    x : null,
+                    y : null,
+                    textStyle : null,
+                    direction : frame.directionInsideLine,
+                    width : ele.stretchFactor / sumStretchFactor * offset,
+                    height : 0,
+                    content : "",
+
+                }
+
+                res.push(tmp);
+            }else{
+                res.push(ele);
+            }
+        }
+
+        return res;
+    }
+
+    /**
+     * remove breakpoints
+     * @param boxitemline boxitem in a line with a breakpoint
+     * @returns boxitemline with break points removed
+     */
+    removeBreakPoints(boxitemline : BoxesItem[]) : BoxesItem[]{
+        var res : BoxesItem[]  = [];
+        let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
+
+        for (var i = 0; i<boxitemline.length; i++){
+            let ele = boxitemline[i];
+            if (breakLineAlgorithms.isBreakPoint(ele)){
+                if (i == boxitemline.length-1){
+                    res.push(ele.newLined);
+                }else{
+                    res.push(ele.original);
+                }
+            }else{
+                res.push(ele);
+            }
+        }
+
+        return res;
     }
 
     
 }
+
 
 /*
 export let a = new Clo();

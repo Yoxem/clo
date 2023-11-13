@@ -35,7 +35,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Clo = exports.calculateTextWidthHeightAux = exports.calculateTextWidthHeight = exports.hyphenTkTree = exports.filterEmptyString = exports.spacesToBreakpoint = exports.hyphenForClo = exports.splitCJKV = exports.twoReturnsToNewline = exports.ptToPx = exports.cjkvRegexPattern = exports.cjkvBlocksInRegex = exports.defaultFrameStyle = exports.defaultTextStyle = exports.A4_IN_PX = exports.Direction = void 0;
 const canva_1 = require("../canva");
 const fontkit = __importStar(require("fontkit"));
-const util = __importStar(require("node:util"));
 const breakLines = __importStar(require("./breakLines"));
 /**
  * TYPES
@@ -360,10 +359,126 @@ class Clo {
             // generate the width and height of the stream
             let defaultFontStyle = this.attrs["defaultFrameStyle"].textStyle;
             let a = yield calculateTextWidthHeight(preprocessed, defaultFontStyle);
+            let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
             // TODO
-            console.log(util.inspect(a, true, 100));
-            console.log(breakLines.totalCost(a, 3, 100));
+            //console.log(breakLineAlgorithms.totalCost(a,70));
+            let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, 70);
+            console.log(this.segmentedNodesToFrameBox(segmentedNodes, this.attrs["defaultFrameStyle"]));
         });
+    }
+    segmentedNodesToFrameBox(segmentedNodes, frame) {
+        let baseLineskip = frame.baseLineskip;
+        let boxArrayEmpty = [];
+        let bigBox = {
+            x: frame.x,
+            y: frame.y,
+            textStyle: frame.textStyle,
+            direction: frame.direction,
+            width: frame.width,
+            height: frame.height,
+            content: boxArrayEmpty,
+        };
+        var bigBoxContent = boxArrayEmpty;
+        let segmentedNodesFixed = segmentedNodes.map((x) => this.removeBreakPoints(x).flat());
+        let segmentedNodeUnglue = segmentedNodesFixed.map((x) => this.removeGlue(x, frame).flat());
+        for (var i = 0; i < segmentedNodesFixed.length - 1; i++) {
+            var currentLineSkip = baseLineskip;
+            var glyphMaxHeight = this.getGlyphMaxHeight(segmentedNodesFixed[i]);
+            if (currentLineSkip === null || glyphMaxHeight > currentLineSkip) {
+                currentLineSkip = glyphMaxHeight;
+            }
+            var currentLineBox = {
+                x: null,
+                y: null,
+                textStyle: exports.defaultTextStyle,
+                direction: frame.directionInsideLine,
+                width: frame.width,
+                height: currentLineSkip,
+                content: segmentedNodeUnglue[i],
+            };
+            bigBoxContent.push(currentLineBox);
+        }
+        bigBox.content = bigBoxContent;
+        return bigBox;
+    }
+    /**
+     * get the max height of the glyph`[a, b, c]`
+     * @param nodeLine the node line [a, b, c, ...]
+     * @returns
+     */
+    getGlyphMaxHeight(nodeLine) {
+        let segmentedNodeLineHeight = nodeLine.map((x) => { if ("height" in x && x.height > 0.0) {
+            return x.height;
+        }
+        else {
+            return 0.0;
+        } });
+        let maxHeight = Math.max(...segmentedNodeLineHeight);
+        return maxHeight;
+    }
+    removeGlue(nodeLine, frame) {
+        let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
+        let glueRemoved = nodeLine.filter((x) => !breakLineAlgorithms.isHGlue(x));
+        let onlyGlue = nodeLine.filter((x) => breakLineAlgorithms.isHGlue(x));
+        let sumStretchFactor = onlyGlue.map((x) => { if ("stretchFactor" in x) {
+            return x.stretchFactor;
+        }
+        else {
+            return 0;
+        } })
+            .reduce((acc, cur) => acc + cur, 0);
+        let glueRemovedWidth = glueRemoved.map((x) => { if ("width" in x) {
+            return x.width;
+        }
+        else {
+            return 0;
+        } })
+            .reduce((acc, cur) => acc + cur, 0);
+        let offset = frame.width - glueRemovedWidth;
+        var res = [];
+        for (var i = 0; i < nodeLine.length; i++) {
+            var ele = nodeLine[i];
+            if (breakLineAlgorithms.isHGlue(ele)) {
+                let tmp = {
+                    x: null,
+                    y: null,
+                    textStyle: null,
+                    direction: frame.directionInsideLine,
+                    width: ele.stretchFactor / sumStretchFactor * offset,
+                    height: 0,
+                    content: "",
+                };
+                res.push(tmp);
+            }
+            else {
+                res.push(ele);
+            }
+        }
+        return res;
+    }
+    /**
+     * remove breakpoints
+     * @param boxitemline boxitem in a line with a breakpoint
+     * @returns boxitemline with break points removed
+     */
+    removeBreakPoints(boxitemline) {
+        var res = [];
+        let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
+        for (var i = 0; i < boxitemline.length; i++) {
+            let ele = boxitemline[i];
+            if (breakLineAlgorithms.isBreakPoint(ele)) {
+                if (i == boxitemline.length - 1) {
+                    res.push(ele.newLined);
+                }
+                else {
+                    res.push(ele.original);
+                }
+            }
+            else {
+                res.push(ele);
+            }
+        }
+        return res;
     }
 }
 exports.Clo = Clo;
