@@ -457,7 +457,7 @@ export class Clo{
 
         for (var j = 0; j<1000; j+=5){
             if (j %50 == 0){
-                page.drawText(i.toString(), {x: 50, y: j});
+                page.drawText(j.toString(), {x: 50, y: j});
             }
 
             page.drawLine({
