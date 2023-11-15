@@ -51,7 +51,8 @@ export class BreakLineAlgorithm {
     }
 
     segmentedNodes(items : BoxesItem[], lineWidth : number) : BoxesItem[][]{
-        this.totalCost(items ,lineWidth);
+        let lineWidthFixed = lineWidth * 0.75;
+        this.totalCost(items ,lineWidthFixed);
         let nodeList = this.generateBreakLineNodeList();
         console.log("~~~", nodeList);
         let res = [];
@@ -64,6 +65,7 @@ export class BreakLineAlgorithm {
             up = nodeList[i+1];
 
         }
+        console.log("===", res.length);
         return res;
     }
 
@@ -98,13 +100,11 @@ export class BreakLineAlgorithm {
 
 
         for (var i=0; i<itemsLength; i++){
-            this.lineCostStorage[i] = Array(itemsLength).fill(undefined);
+            this.lineCostStorage[i] = Array(itemsLength).fill(null);
         }
 
-        this.totalCostAuxStorage = Array(itemsLength).fill(undefined);
-        console.log("===", itemsLength);
+        this.totalCostAuxStorage = Array(itemsLength).fill(null);
         let a = this.totalCostAux(items, itemsLength-1, lineWidth);
-        console.log(this.lineCostStorage);
         return a;
 
     }
@@ -117,7 +117,7 @@ export class BreakLineAlgorithm {
      */
     totalCostAux(items : BoxesItem[], j : number, lineWidth: number): number{
         
-        if (this.totalCostAuxStorage[j] !== undefined){
+        if (this.totalCostAuxStorage[j] !== null){
             return this.totalCostAuxStorage[j];
         }
 
@@ -154,7 +154,7 @@ export class BreakLineAlgorithm {
      * @param lineWidth line width
      */
     lineCost(items : BoxesItem[], i : number, j : number, lineWidth: number) : number{
-        if (this.lineCostStorage[i] !== undefined && this.lineCostStorage[i][j] !== undefined){
+        if (this.lineCostStorage[i] !== null && this.lineCostStorage[i][j] !== null){
             return this.lineCostStorage[i][j];
         }
 

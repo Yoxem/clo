@@ -1,14 +1,10 @@
-import { isBoxedPrimitive, isKeyObject, isStringObject } from "util/types";
 import {tkTree} from "../parser";
 import {FontStyle, TextStyle, TextWeight, fontStyleTofont} from "../canva";
-import { JSDOM } from "jsdom";
 import * as fontkit from "fontkit";
-import * as util from "node:util";
 import * as breakLines from "./breakLines";
-import "pdfkit";
-import PDFKitPage from "pdfkit/js/page";
-import { ColorTypes, PDFDocument, rgb } from "pdf-lib";
+const PDFDocument = require('pdfkit');
 import * as fs from "fs";
+
 
 /**
  * TYPES
@@ -98,10 +94,10 @@ export const defaultFrameStyle : FrameBox = {
     direction : Direction.TTB,
     baseLineskip : ptToPx(15),
     textStyle : defaultTextStyle,
-    x : A4_IN_PX.width * 0.10,
-    y : A4_IN_PX.height * 0.10,
-    width : A4_IN_PX.width * 0.80,
-    height : A4_IN_PX.height * 0.80,
+    x : A4_IN_PX.width * 0.10 * 0.75,
+    y : A4_IN_PX.height * 0.10 * 0.75,
+    width : A4_IN_PX.width * 0.80  ,
+    height : A4_IN_PX.height * 0.80 ,
     content : null,
 };
 
@@ -332,8 +328,8 @@ export async function calculateTextWidthHeightAux(element : tkTree, style : Text
                 y : null,
                 textStyle : style,
                 direction : Direction.LTR,
-                width : (runGlyphsItem.advanceWidth)*(style.size)/1000,
-                height : (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY)*(style.size)/1000,
+                width : (runGlyphsItem.advanceWidth)*(style.size)*0.75/1000,
+                height : (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY)*(style.size)*0.75/1000,
                 content : element[j],
                 minX : runGlyphsItem.bbox.minX,
                 maxX : runGlyphsItem.bbox.maxX,
@@ -439,54 +435,169 @@ export class Clo{
         }
         // generate the width and height of the stream
 
-        let defaultFontStyle : TextStyle = this.attrs["defaultFrameStyle"].textStyle;
+        let defaultFontStyle : TextStyle = this.attrs.defaultFrameStyle.textStyle;
         let a = await calculateTextWidthHeight(preprocessed, defaultFontStyle);
 
         let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
         // TODO
         //console.log(breakLineAlgorithms.totalCost(a,70));
-        let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, 70);
+        let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
 
-        console.log(
-            this.segmentedNodesToFrameBox(segmentedNodes, <FrameBox>this.attrs["defaultFrameStyle"]));
+        console.log(this.attrs.defaultFrameStyle.width);
+        let segmentedNodesToBox =
+            this.segmentedNodesToFrameBox(segmentedNodes, <FrameBox>this.attrs.defaultFrameStyle);
 
-        // generate pdf
-        const pdfDoc = await PDFDocument.create();
-        var page = pdfDoc.addPage();
-        page.drawText('You can create PDFs!');
 
-        for (var j = 0; j<1000; j+=5){
-            if (j %50 == 0){
-                page.drawText(j.toString(), {x: 50, y: j});
-            }
 
-            page.drawLine({
-                start: { x: 0, y: j },
-                end: { x: 1000, y: j },
-                thickness: 0.5,
-                color: rgb(0.75, 0.2, 0.2),
-                opacity: 0.20,
-              });
-        }
+        let boxesFixed = this.fixenBoxesPosition(segmentedNodesToBox);
 
-        for (var i = 0; i<1000; i+=5){
-        if (i % 50 == 0){
-            page.drawText(i.toString(), {x: i, y: 50});
-        }
-        page.drawLine({
-            start: { x: i, y: 0 },
-            end: { x: i, y: 1000 },
-            thickness: 0.5,
-            color: rgb(0.75, 0.2, 0.2),
-            opacity: 0.20,
-          });
-        }
-        pdfDoc.save();
+        
 
-        const pdfBytes = await pdfDoc.save();
-        fs.writeFileSync("blank.pdf", pdfBytes);
+
+        // generate pdf7
+        const doc = new PDFDocument({size: 'A4'});
+        doc.pipe(fs.createWriteStream('output.pdf'));
+        this.grid(doc);
+
+        await this.putText(doc, boxesFixed);
+        // putChar
+        doc.end();
+
     }
 
+    async putText(doc : PDFKit.PDFDocument, box : Box): Promise<PDFKit.PDFDocument>{
+    
+        if (box.textStyle !== null){
+            let fontInfo = fontStyleTofont(box.textStyle);
+        
+            if (fontInfo.path.match(/\.ttc$/g)){
+                doc
+                .font(fontInfo.path, fontInfo.psName)
+                .fontSize(box.textStyle.size*0.75);}
+            else{
+                doc
+                .font(fontInfo.path)
+                .fontSize(box.textStyle.size*0.75);  
+            }
+        
+            if (box.textStyle.color !== undefined){
+                doc.fill(box.textStyle.color);
+            }
+            
+            if (Array.isArray(box.content)){
+                for (var k=0; k<box.content.length; k++){
+
+                    doc = await this.putText(doc, box.content[k]);
+                }
+            }else if (box.content !== null){
+                console.log(box.content, box.x, box.y);
+                await doc.text(box.content,
+                    (box.x!==null? box.x: undefined),
+                    (box.y!==null? box.y: undefined));
+            }
+        
+        }
+        return doc;
+    };
+
+
+
+    private grid(doc: any) {
+        for (var j = 0; j <  A4_IN_PX.width; j += 5) {
+            if (j % 50 == 0) {
+                doc.save().fill('#000000')
+                    .fontSize(8).text(j.toString(), j*0.75, 50);
+
+                doc
+                    .save()
+                    .lineWidth(0.4)
+                    .strokeColor("#dddddd")
+                    .moveTo(j*0.75, 0)
+                    .lineTo(j*0.75, 1000)
+                    .stroke();
+            }
+
+            doc
+                .save()
+                .lineWidth(0.2)
+                .strokeColor("#dddddd")
+                .moveTo(j*0.75, 0)
+                .lineTo(j*0.75, 1000)
+                .stroke();
+        }
+
+        for (var i = 0; i < 1050; i += 5) {
+            if (i % 50 == 0) {
+                doc.save()
+                    .fontSize(8).text(i.toString(), 50, i*0.75);
+
+                doc
+                    .save()
+                    .lineWidth(0.4)
+                    .strokeColor("#bbbbbb")
+                    .moveTo(0, i*0.75)
+                    .lineTo(1000, i*0.75)
+                    .stroke();
+            }
+            doc
+                .save()
+                .lineWidth(0.2)
+                .strokeColor("#bbbbbb")
+                .moveTo(0, i*0.75)
+                .lineTo(1000, i*0.75)
+                .stroke();
+        }
+        doc
+            .save()
+            .moveTo(0, 200)
+            .lineTo(1000, 200)
+            .fill('#FF3300');
+    }
+
+    /**
+     * make all the nest boxes's position fixed
+     * @param box the main boxes
+     * @returns the fixed boxes
+     */
+    fixenBoxesPosition(box : Box) : Box{
+        console.log("~~~~~", box);
+        var currX : number = (box.x!==null?box.x:0); // current x
+        var currY : number =(box.y!==null?box.y:0); // current y
+        if (Array.isArray(box.content)){
+            for (var i=0; i<box.content.length; i++){
+                if (box.direction == Direction.LTR){
+                    box.content[i].x = currX;
+                    box.content[i].y = currY;
+                    let elementWidth = box.content[i].width;
+                    if(elementWidth !== null){
+                        currX += elementWidth;
+                    }
+
+                }
+                if (box.direction == Direction.TTB){
+                    box.content[i].x = currX;
+                    box.content[i].y = currY;
+                    let elementHeight = box.content[i].height;
+                    if(elementHeight !== null){
+                        currY += elementHeight;
+                    }
+
+                }
+
+
+                box.content[i] = this.fixenBoxesPosition(box.content[i]);
+            }
+        }
+
+        return box;
+    }
+
+    /**
+     * input a `segmentedNodes` and a layed `frame`, return a big `Box` that nodes is put in.
+     * @param segmentedNodes the segmentnodes to be input
+     * @param frame the frame to be layed out.
+     * @returns the big `Box`.
+     */
     segmentedNodesToFrameBox(segmentedNodes : BoxesItem[][], frame : FrameBox) : Box{
         let baseLineskip = frame.baseLineskip;
         let boxArrayEmpty  : Box[] = [];
@@ -505,8 +616,8 @@ export class Clo{
         let segmentedNodesFixed = segmentedNodes.map((x)=>this.removeBreakPoints
 (x).flat());
         let segmentedNodeUnglue = segmentedNodesFixed.map((x)=>this.removeGlue(x, frame).flat());
-        
-        for (var i=0; i<segmentedNodesFixed.length-1; i++){
+
+        for (var i=0; i<segmentedNodeUnglue.length; i++){
             var currentLineSkip = baseLineskip;
             var glyphMaxHeight = this.getGlyphMaxHeight(segmentedNodesFixed[i]);
             if (currentLineSkip === null || glyphMaxHeight >currentLineSkip ){
@@ -552,7 +663,8 @@ export class Clo{
 
         let glueRemovedWidth = glueRemoved.map((x)=>{if("width" in x){ return x.width} else{return 0;}})
             .reduce((acc, cur)=>acc+cur , 0);
-        let offset = frame.width - glueRemovedWidth;
+        let offset = frame.width * 0.75 - glueRemovedWidth;
+        console.log("OFFSET", offset);
         var res = [];
         for (var i=0; i<nodeLine.length; i++){
             var ele = nodeLine[i];

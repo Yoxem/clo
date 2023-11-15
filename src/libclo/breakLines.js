@@ -35,7 +35,8 @@ class BreakLineAlgorithm {
         }
     }
     segmentedNodes(items, lineWidth) {
-        this.totalCost(items, lineWidth);
+        let lineWidthFixed = lineWidth * 0.75;
+        this.totalCost(items, lineWidthFixed);
         let nodeList = this.generateBreakLineNodeList();
         console.log("~~~", nodeList);
         let res = [];
@@ -46,6 +47,7 @@ class BreakLineAlgorithm {
             low = nodeList[i];
             up = nodeList[i + 1];
         }
+        console.log("===", res.length);
         return res;
     }
     /**genrate the list of point of breaking line. it returns a correct list ascending*/
@@ -76,12 +78,10 @@ class BreakLineAlgorithm {
         this.lineCostStorage = Array(itemsLength);
         this.prevNodes = Array(itemsLength).fill(null);
         for (var i = 0; i < itemsLength; i++) {
-            this.lineCostStorage[i] = Array(itemsLength).fill(undefined);
+            this.lineCostStorage[i] = Array(itemsLength).fill(null);
         }
-        this.totalCostAuxStorage = Array(itemsLength).fill(undefined);
-        console.log("===", itemsLength);
+        this.totalCostAuxStorage = Array(itemsLength).fill(null);
         let a = this.totalCostAux(items, itemsLength - 1, lineWidth);
-        console.log(this.lineCostStorage);
         return a;
     }
     /**
@@ -91,7 +91,7 @@ class BreakLineAlgorithm {
      * @param lineWidth
      */
     totalCostAux(items, j, lineWidth) {
-        if (this.totalCostAuxStorage[j] !== undefined) {
+        if (this.totalCostAuxStorage[j] !== null) {
             return this.totalCostAuxStorage[j];
         }
         let rawLineCost = this.lineCost(items, 0, j, lineWidth);
@@ -121,7 +121,7 @@ class BreakLineAlgorithm {
      * @param lineWidth line width
      */
     lineCost(items, i, j, lineWidth) {
-        if (this.lineCostStorage[i] !== undefined && this.lineCostStorage[i][j] !== undefined) {
+        if (this.lineCostStorage[i] !== null && this.lineCostStorage[i][j] !== null) {
             return this.lineCostStorage[i][j];
         }
         if (!this.isBreakPoint(items[j])) {
