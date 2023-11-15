@@ -14,7 +14,7 @@ class BreakLineAlgorithm {
     isBreakPoint(item) {
         return item.newLined !== undefined;
     }
-    /**check if a boeitem is BreakPoint Type */
+    /**check if a boeitem is HGlue Type */
     isHGlue(item) {
         return item.stretchFactor !== undefined;
     }

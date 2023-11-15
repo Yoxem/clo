@@ -48,6 +48,7 @@
     "jsdom": "^22.1.0",
     "minimist": "^1.2.8",
     "npx": "^10.2.2",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.13.0",
     "typescript-parsec": "^0.3.4"
   }

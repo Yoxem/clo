@@ -36,6 +36,9 @@ exports.Clo = exports.calculateTextWidthHeightAux = exports.calculateTextWidthHe
 const canva_1 = require("../canva");
 const fontkit = __importStar(require("fontkit"));
 const breakLines = __importStar(require("./breakLines"));
+require("pdfkit");
+const pdf_lib_1 = require("pdf-lib");
+const fs = __importStar(require("fs"));
 /**
  * TYPES
  */
@@ -364,6 +367,37 @@ class Clo {
             //console.log(breakLineAlgorithms.totalCost(a,70));
             let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, 70);
             console.log(this.segmentedNodesToFrameBox(segmentedNodes, this.attrs["defaultFrameStyle"]));
+            // generate pdf
+            const pdfDoc = yield pdf_lib_1.PDFDocument.create();
+            var page = pdfDoc.addPage();
+            page.drawText('You can create PDFs!');
+            for (var j = 0; j < 1000; j += 5) {
+                if (j % 50 == 0) {
+                    page.drawText(i.toString(), { x: 50, y: j });
+                }
+                page.drawLine({
+                    start: { x: 0, y: j },
+                    end: { x: 1000, y: j },
+                    thickness: 0.5,
+                    color: (0, pdf_lib_1.rgb)(0.75, 0.2, 0.2),
+                    opacity: 0.20,
+                });
+            }
+            for (var i = 0; i < 1000; i += 5) {
+                if (i % 50 == 0) {
+                    page.drawText(i.toString(), { x: i, y: 50 });
+                }
+                page.drawLine({
+                    start: { x: i, y: 0 },
+                    end: { x: i, y: 1000 },
+                    thickness: 0.5,
+                    color: (0, pdf_lib_1.rgb)(0.75, 0.2, 0.2),
+                    opacity: 0.20,
+                });
+            }
+            pdfDoc.save();
+            const pdfBytes = yield pdfDoc.save();
+            fs.writeFileSync("blank.pdf", pdfBytes);
         });
     }
     segmentedNodesToFrameBox(segmentedNodes, frame) {
