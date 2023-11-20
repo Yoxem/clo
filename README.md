@@ -5,10 +5,11 @@
  - issue tracking mailing list: `clo@kianting.info`
 
 ## How to use
-cd /path/to/clo
-node . [.clo FILE] --output-js=[.js FILE]
-node [.js FILE]
-
+```
+  cd /path/to/clo
+  node . [.clo FILE] --output-js=[.js FILE]
+  node [.js FILE]
+```
 
 ## changing journal
  - 20230904 建立 thenDo、matchRange的函數、refactor harfbuzzjs 以及libpdf 等測試界面
