@@ -51,6 +51,7 @@ export class BreakLineAlgorithm {
     }
 
     segmentedNodes(items : BoxesItem[], lineWidth : number) : BoxesItem[][]{
+
         let lineWidthFixed = lineWidth;
         this.totalCost(items ,lineWidthFixed);
         let nodeList = this.generateBreakLineNodeList();
@@ -64,6 +65,8 @@ export class BreakLineAlgorithm {
             up = nodeList[i+1];
 
         }
+
+
         return res;
     }
 
@@ -105,16 +108,15 @@ export class BreakLineAlgorithm {
 
         let a = Infinity;
         for(var k=itemsLength-2; this.lineCost(items, k+1,itemsLength-1, lineWidthFixed) < Infinity; k--){
+            
             let tmp = this.totalCostAux(items, k, lineWidthFixed);
-
+            
             if (a > tmp){
                 this.prevNodes[itemsLength-1] = k
                 a = tmp;
             }
+            
         }
-
-        console.log("~~~", lineWidth);
-        console.log((<CharBox>items[itemsLength-2]));
         return a;
 
     }
@@ -163,7 +165,8 @@ export class BreakLineAlgorithm {
      * @param lineWidth line width
      */
     lineCost(items : BoxesItem[], i : number, j : number, lineWidth: number) : number{
-        if (this.lineCostStorage[i] !== null && this.lineCostStorage[i][j] !== null){
+        if (this.lineCostStorage[i][j] !== null){
+            console.log("AA")
             return this.lineCostStorage[i][j];
         }
 

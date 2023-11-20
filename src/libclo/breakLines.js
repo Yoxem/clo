@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BreakLineAlgorithm = void 0;
 /**
@@ -81,27 +72,23 @@ class BreakLineAlgorithm {
      * check all the total cost of paragraphes of the segnemt
      */
     totalCost(items, lineWidth) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let lineWidthFixed = lineWidth * 0.75;
-            let itemsLength = items.length;
-            this.lineCostStorage = Array(itemsLength);
-            this.prevNodes = Array(itemsLength).fill(null);
-            for (var i = 0; i < itemsLength; i++) {
-                this.lineCostStorage[i] = Array(itemsLength).fill(null);
+        let lineWidthFixed = lineWidth * 0.75;
+        let itemsLength = items.length;
+        this.lineCostStorage = Array(itemsLength);
+        this.prevNodes = Array(itemsLength).fill(null);
+        for (var i = 0; i < itemsLength; i++) {
+            this.lineCostStorage[i] = Array(itemsLength).fill(null);
+        }
+        this.totalCostAuxStorage = Array(itemsLength).fill(null);
+        let a = Infinity;
+        for (var k = itemsLength - 2; this.lineCost(items, k + 1, itemsLength - 1, lineWidthFixed) < Infinity; k--) {
+            let tmp = this.totalCostAux(items, k, lineWidthFixed);
+            if (a > tmp) {
+                this.prevNodes[itemsLength - 1] = k;
+                a = tmp;
             }
-            this.totalCostAuxStorage = Array(itemsLength).fill(null);
-            let a = Infinity;
-            for (var k = itemsLength - 2; (yield this.lineCost(items, k + 1, itemsLength - 1, lineWidthFixed)) < Infinity; k--) {
-                let tmp = yield this.totalCostAux(items, k, lineWidthFixed);
-                if (a > tmp) {
-                    this.prevNodes[itemsLength - 1] = k;
-                    a = tmp;
-                }
-            }
-            console.log("~~~", lineWidth);
-            console.log(items[itemsLength - 2]);
-            return a;
-        });
+        }
+        return a;
     }
     /**
      * check the total cost item[0..j].
@@ -110,29 +97,26 @@ class BreakLineAlgorithm {
      * @param lineWidth
      */
     totalCostAux(items, j, lineWidth) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.totalCostAuxStorage[j] !== null) {
-                return this.totalCostAuxStorage[j];
-            }
-            let rawLineCost = yield this.lineCost(items, 0, j, lineWidth);
-            if (rawLineCost != Infinity) {
-                this.totalCostAuxStorage[j] = rawLineCost ** 3.0;
-                return rawLineCost ** 3.0;
-            }
-            else {
-                var returnCost = Infinity;
-                for (var k = 0; k < j; k++) {
-                    let tmp1 = yield Promise.all([this.totalCostAux(items, k, lineWidth), this.lineCost(items, k + 1, j, lineWidth)]);
-                    let tmp = tmp1[0] + tmp1[1] ** 3;
-                    if (returnCost > tmp) {
-                        this.prevNodes[j] = k;
-                        returnCost = tmp;
-                    }
+        if (this.totalCostAuxStorage[j] !== null) {
+            return this.totalCostAuxStorage[j];
+        }
+        let rawLineCost = this.lineCost(items, 0, j, lineWidth);
+        if (rawLineCost != Infinity) {
+            this.totalCostAuxStorage[j] = rawLineCost ** 3.0;
+            return rawLineCost ** 3.0;
+        }
+        else {
+            var returnCost = Infinity;
+            for (var k = 0; k < j; k++) {
+                let tmp = this.totalCostAux(items, k, lineWidth) + this.lineCost(items, k + 1, j, lineWidth) ** 3.0;
+                if (returnCost > tmp) {
+                    this.prevNodes[j] = k;
+                    returnCost = tmp;
                 }
-                this.totalCostAuxStorage[j] = returnCost;
-                return returnCost;
             }
-        });
+            this.totalCostAuxStorage[j] = returnCost;
+            return returnCost;
+        }
     }
     /**
      * check the line cost of a line containing items[i..j]
@@ -142,31 +126,30 @@ class BreakLineAlgorithm {
      * @param lineWidth line width
      */
     lineCost(items, i, j, lineWidth) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.lineCostStorage[i] !== null && this.lineCostStorage[i][j] !== null) {
-                return this.lineCostStorage[i][j];
+        if (this.lineCostStorage[i][j] !== null) {
+            console.log("AA");
+            return this.lineCostStorage[i][j];
+        }
+        if (!this.isBreakPoint(items[j])) {
+            this.lineCostStorage[i][j] = Infinity;
+            return Infinity;
+        }
+        else {
+            var tmpItemWidth = 0;
+            for (var k = i; k < j; k++) {
+                tmpItemWidth += this.origWidth(items[k]);
             }
-            if (!this.isBreakPoint(items[j])) {
+            tmpItemWidth += this.newLineWidth(items[j]);
+            if (tmpItemWidth > lineWidth) {
                 this.lineCostStorage[i][j] = Infinity;
                 return Infinity;
             }
             else {
-                var tmpItemWidth = 0;
-                for (var k = i; k < j; k++) {
-                    tmpItemWidth += this.origWidth(items[k]);
-                }
-                tmpItemWidth += this.newLineWidth(items[j]);
-                if (tmpItemWidth > lineWidth) {
-                    this.lineCostStorage[i][j] = Infinity;
-                    return Infinity;
-                }
-                else {
-                    let returnValue = (lineWidth - tmpItemWidth);
-                    this.lineCostStorage[i][j] = returnValue;
-                    return returnValue;
-                }
+                let returnValue = (lineWidth - tmpItemWidth);
+                this.lineCostStorage[i][j] = returnValue;
+                return returnValue;
             }
-        });
+        }
     }
 }
 exports.BreakLineAlgorithm = BreakLineAlgorithm;

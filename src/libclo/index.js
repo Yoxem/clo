@@ -245,8 +245,13 @@ exports.hyphenTkTree = hyphenTkTree;
 function calculateTextWidthHeight(element, style) {
     return __awaiter(this, void 0, void 0, function* () {
         var res = [];
+        var styleCache = {};
+        var fontCache = {};
         for (var i = 0; i < element.length; i++) {
-            res.push(yield calculateTextWidthHeightAux(element[i], style));
+            let item = yield calculateTextWidthHeightAux(element[i], style, styleCache, fontCache);
+            styleCache = item[1];
+            fontCache = item[2];
+            res.push(item[0]);
         }
         res = res.flat();
         return res;
@@ -258,15 +263,25 @@ exports.calculateTextWidthHeight = calculateTextWidthHeight;
  * @param preprocessed
  * @param defaultFontStyle
  */
-function calculateTextWidthHeightAux(element, style) {
+function calculateTextWidthHeightAux(element, style, styleCache, fontCache) {
     return __awaiter(this, void 0, void 0, function* () {
         var result = [];
-        let fontPair = (0, canva_1.fontStyleTofont)(style);
-        if (fontPair.path.match(/\.ttc$/)) {
-            var font = yield fontkit.openSync(fontPair.path, fontPair.psName);
+        var font;
+        if (style === styleCache) {
+            font = fontCache;
         }
         else {
-            var font = yield fontkit.openSync(fontPair.path);
+            let fontPair = (0, canva_1.fontStyleTofont)(style);
+            if (fontPair.path.match(/\.ttc$/)) {
+                font = yield fontkit.openSync(fontPair.path, fontPair.psName);
+                styleCache = style;
+                fontCache = font;
+            }
+            else {
+                font = yield fontkit.openSync(fontPair.path);
+                styleCache = style;
+                fontCache = font;
+            }
         }
         if (!Array.isArray(element)) {
             var run = font.layout(element, undefined, undefined, undefined, "ltr");
@@ -287,14 +302,14 @@ function calculateTextWidthHeightAux(element, style) {
                 };
                 result.push(item);
             }
-            return result;
+            return [result, styleCache, fontCache];
         }
         else if (element[0] == "bp") {
-            var beforeNewLine = yield calculateTextWidthHeightAux(element[1], style);
+            var beforeNewLine = (yield calculateTextWidthHeightAux(element[1], style, styleCache, fontCache))[0];
             if (Array.isArray(beforeNewLine)) {
                 beforeNewLine = beforeNewLine.flat();
             }
-            let afterNewLine = yield calculateTextWidthHeightAux(element[2], style);
+            let afterNewLine = (yield calculateTextWidthHeightAux(element[2], style, styleCache, fontCache))[0];
             if (Array.isArray(afterNewLine)) {
                 afterNewLine = afterNewLine.flat();
             }
@@ -302,14 +317,14 @@ function calculateTextWidthHeightAux(element, style) {
                 original: beforeNewLine,
                 newLined: afterNewLine,
             };
-            return breakPointNode;
+            return [breakPointNode, styleCache, fontCache];
         }
         else if (element[0] == "hglue" && !Array.isArray(element[1])) {
             let hGlue = { stretchFactor: parseFloat(element[1]) };
-            return hGlue;
+            return [hGlue, styleCache, fontCache];
         }
         else {
-            return calculateTextWidthHeight(element, style);
+            return [yield calculateTextWidthHeight(element, style), styleCache, fontCache];
         }
     });
 }
@@ -362,47 +377,58 @@ class Clo {
             let defaultFontStyle = this.attrs.defaultFrameStyle.textStyle;
             let a = yield calculateTextWidthHeight(preprocessed, defaultFontStyle);
             let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
-            // TODO
-            //console.log(breakLineAlgorithms.totalCost(a,70));
             let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
             let segmentedNodesToBox = this.segmentedNodesToFrameBox(segmentedNodes, this.attrs.defaultFrameStyle);
             let boxesFixed = this.fixenBoxesPosition(segmentedNodesToBox);
-            // generate pdf7
+            // generate pdf
             const doc = new PDFDocument({ size: 'A4' });
             doc.pipe(fs.createWriteStream('output.pdf'));
             this.grid(doc);
-            yield this.putText(doc, boxesFixed);
+            let styleCache = {};
+            let fontPairCache = { path: "", psName: "" };
+            yield this.putText(doc, boxesFixed, styleCache, fontPairCache);
             // putChar
             doc.end();
         });
     }
-    putText(doc, box) {
+    putText(doc, box, styleCache, fontPairCache) {
         return __awaiter(this, void 0, void 0, function* () {
+            var fontPair;
             if (box.textStyle !== null) {
-                let fontInfo = (0, canva_1.fontStyleTofont)(box.textStyle);
-                if (fontInfo.path.match(/\.ttc$/g)) {
-                    doc
-                        .font(fontInfo.path, fontInfo.psName)
-                        .fontSize(box.textStyle.size * 0.75);
+                if (box.textStyle == styleCache) {
+                    fontPair = fontPairCache;
                 }
                 else {
-                    doc
-                        .font(fontInfo.path)
-                        .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
+                    fontPair = (0, canva_1.fontStyleTofont)(box.textStyle);
+                    styleCache = box.textStyle;
+                    fontPairCache = fontPair;
+                    if (fontPair.path.match(/\.ttc$/g)) {
+                        doc
+                            .font(fontPair.path, fontPair.psName)
+                            .fontSize(box.textStyle.size * 0.75);
+                    }
+                    else {
+                        doc
+                            .font(fontPair.path)
+                            .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
+                    }
                 }
                 if (box.textStyle.color !== undefined) {
                     doc.fill(box.textStyle.color);
                 }
                 if (Array.isArray(box.content)) {
                     for (var k = 0; k < box.content.length; k++) {
-                        doc = yield this.putText(doc, box.content[k]);
+                        let tmp = yield this.putText(doc, box.content[k], styleCache, fontPairCache);
+                        doc = tmp[0];
+                        styleCache = tmp[1];
+                        fontPairCache = tmp[2];
                     }
                 }
                 else if (box.content !== null) {
                     yield doc.text(box.content, (box.x !== null ? box.x : undefined), (box.y !== null ? box.y : undefined));
                 }
             }
-            return doc;
+            return [doc, styleCache, fontPairCache];
         });
     }
     ;

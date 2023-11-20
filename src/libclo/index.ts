@@ -1,9 +1,11 @@
 import {tkTree} from "../parser";
-import {FontStyle, TextStyle, TextWeight, fontStyleTofont} from "../canva";
+import {FontStyle, TextStyle, TextWeight, fontStyleTofont, fontPathPSNamePair} from "../canva";
 import * as fontkit from "fontkit";
 import * as breakLines from "./breakLines";
 const PDFDocument = require('pdfkit');
 import * as fs from "fs";
+import { Style } from "util";
+import { time } from "console";
 
 
 /**
@@ -279,6 +281,8 @@ export function hyphenTkTree(arr : tkTree, lang: string) : tkTree{
     return result;
 }
 
+
+
 /**
  * calculate the text width and Height with a given `TextStyle` 
  * @param preprocessed 
@@ -286,9 +290,14 @@ export function hyphenTkTree(arr : tkTree, lang: string) : tkTree{
  */
 export async function calculateTextWidthHeight(element : tkTree, style : TextStyle): Promise<BoxesItem[]> {
     var res = [];
+    var styleCache = {};
+    var fontCache = {};
     
     for (var i=0; i<element.length; i++){
-        res.push(await calculateTextWidthHeightAux(element[i], style));
+        let item = await calculateTextWidthHeightAux(element[i], style, <TextStyle>styleCache, <fontkit.Font>fontCache);
+        styleCache = item[1];
+        fontCache = item[2];
+        res.push(item[0]);
     }
 
     res = res.flat();
@@ -302,18 +311,37 @@ export async function calculateTextWidthHeight(element : tkTree, style : TextSty
  * @param preprocessed 
  * @param defaultFontStyle 
  */
-export async function calculateTextWidthHeightAux(element : tkTree, style : TextStyle): Promise<BoxesItem> {
+export async function calculateTextWidthHeightAux(element : tkTree,
+                                                    style : TextStyle,
+                                                    styleCache : TextStyle,
+                                                    fontCache :  fontkit.Font): Promise<[BoxesItem, TextStyle, fontkit.Font] > {
     var result : BoxesItem = [];
-    
+    var font;
+
+    if (style === styleCache){
+        font = fontCache;
+    }else {
 
 
     let fontPair = fontStyleTofont(style);
+
     if (fontPair.path.match(/\.ttc$/)){
-        var font = await fontkit.openSync(fontPair.path, fontPair.psName);
+        font = await fontkit.openSync(fontPair.path, fontPair.psName);
+        styleCache = style;
+        fontCache = font;
+
     }
     else{
-        var font = await fontkit.openSync(fontPair.path);
+        font = await fontkit.openSync(fontPair.path);
+        styleCache = style;
+        fontCache = font;
     }
+
+    
+
+    }
+
+
     if (!Array.isArray(element)){
         var run = font.layout(element, undefined, undefined, undefined, "ltr");
 
@@ -340,19 +368,20 @@ export async function calculateTextWidthHeightAux(element : tkTree, style : Text
             result.push(item);
 
         }
-    return result;
+    return [result, styleCache, fontCache];
 
 
         
 
     }else if(element[0] == "bp"){
 
-        var beforeNewLine = await calculateTextWidthHeightAux(element[1], style);
+
+        var beforeNewLine = (await calculateTextWidthHeightAux(element[1], style, styleCache, fontCache))[0];
         if (Array.isArray(beforeNewLine)){
             beforeNewLine = beforeNewLine.flat();
         }
 
-        let afterNewLine = await calculateTextWidthHeightAux(element[2], style);
+        let afterNewLine = (await calculateTextWidthHeightAux(element[2], style, styleCache, fontCache))[0];
         if (Array.isArray(afterNewLine)){
             afterNewLine = afterNewLine.flat();
         }
@@ -362,13 +391,13 @@ export async function calculateTextWidthHeightAux(element : tkTree, style : Text
             newLined : afterNewLine,
         }
 
-        return breakPointNode;
+        return [breakPointNode, styleCache, fontCache];
     }else if(element[0] == "hglue" && !Array.isArray(element[1])){
         let hGlue : HGlue = {stretchFactor : parseFloat(element[1])}
-        return hGlue;
+        return [hGlue, styleCache, fontCache];
     }
     else{
-        return calculateTextWidthHeight(element, style);
+        return [await calculateTextWidthHeight(element, style), styleCache, fontCache];
     }
 }
 
@@ -428,24 +457,26 @@ export class Clo{
     }
 
     public async generatePdf(){
+
         // preprocessed
         var preprocessed = this.mainStream;
         for (var i = 0; i<this.preprocessors.length; i++){
             preprocessed = this.preprocessors[i](preprocessed, this);
         }
+
         // generate the width and height of the stream
 
         let defaultFontStyle : TextStyle = this.attrs.defaultFrameStyle.textStyle;
+
+
         let a = await calculateTextWidthHeight(preprocessed, defaultFontStyle);
 
         let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
-        // TODO
-        //console.log(breakLineAlgorithms.totalCost(a,70));
+
         let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
 
         let segmentedNodesToBox =
             this.segmentedNodesToFrameBox(segmentedNodes, <FrameBox>this.attrs.defaultFrameStyle);
-
 
 
         let boxesFixed = this.fixenBoxesPosition(segmentedNodesToBox);
@@ -453,31 +484,45 @@ export class Clo{
         
 
 
-        // generate pdf7
+        // generate pdf
         const doc = new PDFDocument({size: 'A4'});
         doc.pipe(fs.createWriteStream('output.pdf'));
         this.grid(doc);
 
-        await this.putText(doc, boxesFixed);
+        let styleCache : any = {};
+        let fontPairCache : fontPathPSNamePair = {path : "", psName : ""};
+        await this.putText(doc, boxesFixed, <TextStyle>styleCache, fontPairCache);
         // putChar
         doc.end();
 
+
     }
 
-    async putText(doc : PDFKit.PDFDocument, box : Box): Promise<PDFKit.PDFDocument>{
+    async putText(doc : PDFKit.PDFDocument, box : Box, styleCache : TextStyle,
+        fontPairCache : fontPathPSNamePair):
+        Promise<[PDFKit.PDFDocument, TextStyle, fontPathPSNamePair]>{
+            var fontPair;
+        
     
         if (box.textStyle !== null){
-            let fontInfo = fontStyleTofont(box.textStyle);
-        
-            if (fontInfo.path.match(/\.ttc$/g)){
-                doc
-                .font(fontInfo.path, fontInfo.psName)
-                .fontSize(box.textStyle.size * 0.75);}
-            else{
-                doc
-                .font(fontInfo.path)
-                .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
-            }
+            
+            if(box.textStyle == styleCache){
+                fontPair = fontPairCache;
+            }else{
+                fontPair = fontStyleTofont(box.textStyle);
+                styleCache = box.textStyle;
+                fontPairCache = fontPair;
+
+                if (fontPair.path.match(/\.ttc$/g)){
+                    doc
+                    .font(fontPair.path, fontPair.psName)
+                    .fontSize(box.textStyle.size * 0.75);}
+                else{
+                    doc
+                    .font(fontPair.path)
+                    .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
+                }
+        }
         
             if (box.textStyle.color !== undefined){
                 doc.fill(box.textStyle.color);
@@ -486,7 +531,10 @@ export class Clo{
             if (Array.isArray(box.content)){
                 for (var k=0; k<box.content.length; k++){
 
-                    doc = await this.putText(doc, box.content[k]);
+                    let tmp = await this.putText(doc, box.content[k], styleCache, fontPairCache);
+                    doc = tmp[0];
+                    styleCache = tmp[1];
+                    fontPairCache = tmp[2];
                 }
             }else if (box.content !== null){
                 await doc.text(box.content,
@@ -495,7 +543,9 @@ export class Clo{
             }
         
         }
-        return doc;
+
+
+        return [doc, styleCache, fontPairCache];
     };
 
 
