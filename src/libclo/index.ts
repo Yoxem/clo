@@ -58,11 +58,11 @@ export interface CharBox extends Box{
 
 /**
  * a basic Box
- * - x :
- * - y : 
+ * - x : pt
+ * - y : pt
  * - textStyle :
  * - direction :
- * - width : x_advance
+ * - width : x_advance pt
  * - content :
  */
 export interface Box{
@@ -94,8 +94,8 @@ export const defaultFrameStyle : FrameBox = {
     direction : Direction.TTB,
     baseLineskip : ptToPx(15),
     textStyle : defaultTextStyle,
-    x : A4_IN_PX.width * 0.10 * 0.75,
-    y : A4_IN_PX.height * 0.10 * 0.75,
+    x : A4_IN_PX.width * 0.10 ,
+    y : A4_IN_PX.height * 0.10 ,
     width : A4_IN_PX.width * 0.80  ,
     height : A4_IN_PX.height * 0.80 ,
     content : null,
@@ -328,8 +328,8 @@ export async function calculateTextWidthHeightAux(element : tkTree, style : Text
                 y : null,
                 textStyle : style,
                 direction : Direction.LTR,
-                width : (runGlyphsItem.advanceWidth)*(style.size)*0.75/1000,
-                height : (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY)*(style.size)*0.75/1000,
+                width : (runGlyphsItem.advanceWidth)*(style.size)/1000 * 0.75, // in pt
+                height : (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY)*(style.size)/1000 * 0.75, // in pt
                 content : element[j],
                 minX : runGlyphsItem.bbox.minX,
                 maxX : runGlyphsItem.bbox.maxX,
@@ -443,7 +443,6 @@ export class Clo{
         //console.log(breakLineAlgorithms.totalCost(a,70));
         let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
 
-        console.log(this.attrs.defaultFrameStyle.width);
         let segmentedNodesToBox =
             this.segmentedNodesToFrameBox(segmentedNodes, <FrameBox>this.attrs.defaultFrameStyle);
 
@@ -473,11 +472,11 @@ export class Clo{
             if (fontInfo.path.match(/\.ttc$/g)){
                 doc
                 .font(fontInfo.path, fontInfo.psName)
-                .fontSize(box.textStyle.size*0.75);}
+                .fontSize(box.textStyle.size * 0.75);}
             else{
                 doc
                 .font(fontInfo.path)
-                .fontSize(box.textStyle.size*0.75);  
+                .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
             }
         
             if (box.textStyle.color !== undefined){
@@ -490,7 +489,6 @@ export class Clo{
                     doc = await this.putText(doc, box.content[k]);
                 }
             }else if (box.content !== null){
-                console.log(box.content, box.x, box.y);
                 await doc.text(box.content,
                     (box.x!==null? box.x: undefined),
                     (box.y!==null? box.y: undefined));
@@ -560,7 +558,6 @@ export class Clo{
      * @returns the fixed boxes
      */
     fixenBoxesPosition(box : Box) : Box{
-        console.log("~~~~~", box);
         var currX : number = (box.x!==null?box.x:0); // current x
         var currY : number =(box.y!==null?box.y:0); // current y
         if (Array.isArray(box.content)){
@@ -602,12 +599,12 @@ export class Clo{
         let baseLineskip = frame.baseLineskip;
         let boxArrayEmpty  : Box[] = [];
         let bigBox : Box = {
-            x : frame.x,
-            y : frame.y,
+            x : (frame.x !==null? frame.x * 0.75 : null),
+            y : (frame.y !==null? frame.y * 0.75 : null),
             textStyle :  frame.textStyle,
             direction : frame.direction,
             width : frame.width,
-            height : frame.height,
+            height :frame.height,
             content : boxArrayEmpty,
         }
 
@@ -664,7 +661,6 @@ export class Clo{
         let glueRemovedWidth = glueRemoved.map((x)=>{if("width" in x){ return x.width} else{return 0;}})
             .reduce((acc, cur)=>acc+cur , 0);
         let offset = frame.width * 0.75 - glueRemovedWidth;
-        console.log("OFFSET", offset);
         var res = [];
         for (var i=0; i<nodeLine.length; i++){
             var ele = nodeLine[i];
@@ -674,6 +670,7 @@ export class Clo{
                     y : null,
                     textStyle : null,
                     direction : frame.directionInsideLine,
+                    //width : 0, // ragged
                     width : ele.stretchFactor / sumStretchFactor * offset,
                     height : 0,
                     content : "",

@@ -4,3 +4,4 @@ node_modules
 .vscode
 activate.sh
 docs/.nojekyll
+debug.log

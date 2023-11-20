@@ -35,10 +35,9 @@ class BreakLineAlgorithm {
         }
     }
     segmentedNodes(items, lineWidth) {
-        let lineWidthFixed = lineWidth * 0.75;
+        let lineWidthFixed = lineWidth;
         this.totalCost(items, lineWidthFixed);
         let nodeList = this.generateBreakLineNodeList();
-        console.log("~~~", nodeList);
         let res = [];
         let low = -1;
         let up = nodeList[0];
@@ -47,7 +46,6 @@ class BreakLineAlgorithm {
             low = nodeList[i];
             up = nodeList[i + 1];
         }
-        console.log("===", res.length);
         return res;
     }
     /**genrate the list of point of breaking line. it returns a correct list ascending*/
@@ -74,6 +72,7 @@ class BreakLineAlgorithm {
      * check all the total cost of paragraphes of the segnemt
      */
     totalCost(items, lineWidth) {
+        let lineWidthFixed = lineWidth * 0.75;
         let itemsLength = items.length;
         this.lineCostStorage = Array(itemsLength);
         this.prevNodes = Array(itemsLength).fill(null);
@@ -81,7 +80,16 @@ class BreakLineAlgorithm {
             this.lineCostStorage[i] = Array(itemsLength).fill(null);
         }
         this.totalCostAuxStorage = Array(itemsLength).fill(null);
-        let a = this.totalCostAux(items, itemsLength - 1, lineWidth);
+        let a = Infinity;
+        for (var k = itemsLength - 2; this.lineCost(items, k + 1, itemsLength - 1, lineWidthFixed) < Infinity; k--) {
+            let tmp = this.totalCostAux(items, k, lineWidthFixed);
+            if (a > tmp) {
+                this.prevNodes[itemsLength - 1] = k;
+                a = tmp;
+            }
+        }
+        console.log("~~~", lineWidth);
+        console.log(items[itemsLength - 2]);
         return a;
     }
     /**
@@ -96,13 +104,13 @@ class BreakLineAlgorithm {
         }
         let rawLineCost = this.lineCost(items, 0, j, lineWidth);
         if (rawLineCost != Infinity) {
-            this.totalCostAuxStorage[j] = rawLineCost;
-            return rawLineCost;
+            this.totalCostAuxStorage[j] = rawLineCost ** 3.0;
+            return rawLineCost ** 3.0;
         }
         else {
             var returnCost = Infinity;
             for (var k = 0; k < j; k++) {
-                let tmp = this.totalCostAux(items, k, lineWidth) + this.lineCost(items, k + 1, j, lineWidth);
+                let tmp = this.totalCostAux(items, k, lineWidth) + this.lineCost(items, k + 1, j, lineWidth) ** 3.0;
                 if (returnCost > tmp) {
                     this.prevNodes[j] = k;
                     returnCost = tmp;
@@ -139,7 +147,7 @@ class BreakLineAlgorithm {
                 return Infinity;
             }
             else {
-                let returnValue = (lineWidth - tmpItemWidth) ** 3.0;
+                let returnValue = (lineWidth - tmpItemWidth);
                 this.lineCostStorage[i][j] = returnValue;
                 return returnValue;
             }

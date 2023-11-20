@@ -70,8 +70,8 @@ exports.defaultFrameStyle = {
     direction: Direction.TTB,
     baseLineskip: ptToPx(15),
     textStyle: exports.defaultTextStyle,
-    x: exports.A4_IN_PX.width * 0.10 * 0.75,
-    y: exports.A4_IN_PX.height * 0.10 * 0.75,
+    x: exports.A4_IN_PX.width * 0.10,
+    y: exports.A4_IN_PX.height * 0.10,
     width: exports.A4_IN_PX.width * 0.80,
     height: exports.A4_IN_PX.height * 0.80,
     content: null,
@@ -277,8 +277,8 @@ function calculateTextWidthHeightAux(element, style) {
                     y: null,
                     textStyle: style,
                     direction: Direction.LTR,
-                    width: (runGlyphsItem.advanceWidth) * (style.size) * 0.75 / 1000,
-                    height: (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY) * (style.size) * 0.75 / 1000,
+                    width: (runGlyphsItem.advanceWidth) * (style.size) / 1000 * 0.75,
+                    height: (runGlyphsItem.bbox.maxY - runGlyphsItem.bbox.minY) * (style.size) / 1000 * 0.75,
                     content: element[j],
                     minX: runGlyphsItem.bbox.minX,
                     maxX: runGlyphsItem.bbox.maxX,
@@ -365,7 +365,6 @@ class Clo {
             // TODO
             //console.log(breakLineAlgorithms.totalCost(a,70));
             let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
-            console.log(this.attrs.defaultFrameStyle.width);
             let segmentedNodesToBox = this.segmentedNodesToFrameBox(segmentedNodes, this.attrs.defaultFrameStyle);
             let boxesFixed = this.fixenBoxesPosition(segmentedNodesToBox);
             // generate pdf7
@@ -389,7 +388,7 @@ class Clo {
                 else {
                     doc
                         .font(fontInfo.path)
-                        .fontSize(box.textStyle.size * 0.75);
+                        .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
                 }
                 if (box.textStyle.color !== undefined) {
                     doc.fill(box.textStyle.color);
@@ -400,7 +399,6 @@ class Clo {
                     }
                 }
                 else if (box.content !== null) {
-                    console.log(box.content, box.x, box.y);
                     yield doc.text(box.content, (box.x !== null ? box.x : undefined), (box.y !== null ? box.y : undefined));
                 }
             }
@@ -461,7 +459,6 @@ class Clo {
      * @returns the fixed boxes
      */
     fixenBoxesPosition(box) {
-        console.log("~~~~~", box);
         var currX = (box.x !== null ? box.x : 0); // current x
         var currY = (box.y !== null ? box.y : 0); // current y
         if (Array.isArray(box.content)) {
@@ -497,8 +494,8 @@ class Clo {
         let baseLineskip = frame.baseLineskip;
         let boxArrayEmpty = [];
         let bigBox = {
-            x: frame.x,
-            y: frame.y,
+            x: (frame.x !== null ? frame.x * 0.75 : null),
+            y: (frame.y !== null ? frame.y * 0.75 : null),
             textStyle: frame.textStyle,
             direction: frame.direction,
             width: frame.width,
@@ -562,7 +559,6 @@ class Clo {
         } })
             .reduce((acc, cur) => acc + cur, 0);
         let offset = frame.width * 0.75 - glueRemovedWidth;
-        console.log("OFFSET", offset);
         var res = [];
         for (var i = 0; i < nodeLine.length; i++) {
             var ele = nodeLine[i];
@@ -572,6 +568,7 @@ class Clo {
                     y: null,
                     textStyle: null,
                     direction: frame.directionInsideLine,
+                    //width : 0, // ragged
                     width: ele.stretchFactor / sumStretchFactor * offset,
                     height: 0,
                     content: "",
