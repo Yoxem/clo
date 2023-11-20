@@ -4,6 +4,12 @@
  - license: MIT 
  - issue tracking mailing list: `clo@kianting.info`
 
+## How to use
+cd /path/to/clo
+node . [.clo FILE] --output-js=[.js FILE]
+node [.js FILE]
+
+
 ## changing journal
  - 20230904 建立 thenDo、matchRange的函數、refactor harfbuzzjs 以及libpdf 等測試界面
  - 20230905-06: 建立 : `toSome`, initial of basic tokenizer (`tokenize`),
