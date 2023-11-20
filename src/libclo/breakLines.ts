@@ -150,7 +150,6 @@ export class BreakLineAlgorithm {
         }
         
 
-        return returnCost;
 
     }
 
