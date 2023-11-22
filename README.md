@@ -72,5 +72,8 @@
 ```
 
 ## How to generate documents
- - `typedoc /path/to/index.js [/path/to/index2.js ...]`
-the generated page will be stored in `/src`.
+ - `typedoc /path/to/src1 [/path/to/another/src/or/.js ...]`
+the generated page will be stored in `/docs`.
+
+store the documents
+ - `rsync /path/to/docs host@/var/www/docs`
