@@ -16,6 +16,7 @@
 <li>another personal draught of a typesetting language and engine.</li>
 <li>website: <a href="https://kianting.info/wiki/w/Project:Clo">https://kianting.info/wiki/w/Project:Clo</a></li>
 <li>license: MIT </li>
+<li>docs : <a href="https://buhong.kianting.info/docs/clo/index.html">https://buhong.kianting.info/docs/clo/index.html</a></li>
 <li>issue tracking mailing list: <code>clo@kianting.info</code></li>
 </ul>
 <a id="md:how-to-use" class="tsd-anchor"></a><h2><a href="#md:how-to-use">How to use</a></h2><pre><code><span class="hl-0">  </span><span class="hl-1">cd</span><span class="hl-0"> /</span><span class="hl-1">path</span><span class="hl-0">/</span><span class="hl-1">to</span><span class="hl-0">/</span><span class="hl-1">clo</span><br/><span class="hl-0">  </span><span class="hl-1">node</span><span class="hl-0"> . [.</span><span class="hl-1">clo</span><span class="hl-0"> </span><span class="hl-2">FILE</span><span class="hl-0">] --</span><span class="hl-1">output</span><span class="hl-0">-</span><span class="hl-1">js</span><span class="hl-0">=[.</span><span class="hl-1">js</span><span class="hl-0"> </span><span class="hl-2">FILE</span><span class="hl-0">]</span><br/><span class="hl-0">  </span><span class="hl-1">node</span><span class="hl-0"> [.</span><span class="hl-1">js</span><span class="hl-0"> </span><span class="hl-2">FILE</span><span class="hl-0">]</span>
@@ -51,7 +52,8 @@
 <li>20231109-10: Keng-kái oa̍h-chōa ián-sǹg-hoat.</li>
 <li>20231113: the algorithm is basically fixed, and make a <code>bigFrame</code> to prepare for convert to boxes and positions.</li>
 <li>20231115-16: grid and basic types laying.</li>
-<li>231120 fix the line-breaking algorithm</li>
+<li>20231120: fix the line-breaking algorithm</li>
+<li>20231125: multiple paragraph basic</li>
 </ul>
 <a id="md:之後的做法" class="tsd-anchor"></a><h2><a href="#md:之後的做法">之後的做法</a></h2><ul>
 <li>先做一個前處理註冊器，註冊下列的前處理<ul>
@@ -69,7 +71,7 @@
 </li>
 </ul>
 <a id="md:排版語法" class="tsd-anchor"></a><h2><a href="#md:排版語法">排版語法</a></h2><p>使用lisp表示，但其實是陣列</p>
-<pre><code class="language-lisp"><span class="hl-0">  (hglue 寬度 伸展值)</span><br/><span class="hl-0">  (vglue 高度 伸展值)</span><br/><span class="hl-0">  (bp 原始模式 斷行模式) </span><span class="hl-5">; breakpoint</span><br/><span class="hl-0">  (nl) </span><span class="hl-5">; newline</span><br/><span class="hl-0">  (em 數字)</span><br/><span class="hl-0">  (ex 數字)</span><br/><span class="hl-0">  (span {</span><span class="hl-4">&quot;font-family&quot;</span><span class="hl-0"> </span><span class="hl-6">:</span><span class="hl-0"> </span><span class="hl-4">&quot;Noto Sans&quot;</span><span class="hl-0"> , </span><span class="hl-4">&quot;font-size&quot;</span><span class="hl-0"> </span><span class="hl-6">:</span><span class="hl-0"> </span><span class="hl-7">16</span><span class="hl-0"> })</span><br/><span class="hl-0">  (vbox 高度 內容)</span>
+<pre><code class="language-lisp"><span class="hl-0">  (hglue 寬度 伸展值)</span><br/><span class="hl-0">  (vglue 高度 伸展值)</span><br/><span class="hl-0">  (bp 原始模式 斷行模式) </span><span class="hl-5">; breakpoint</span><br/><span class="hl-0">  (br) </span><span class="hl-5">; force newline</span><br/><span class="hl-0">  (em 數字)</span><br/><span class="hl-0">  (ex 數字)</span><br/><span class="hl-0">  (span {</span><span class="hl-4">&quot;font-family&quot;</span><span class="hl-0"> </span><span class="hl-6">:</span><span class="hl-0"> </span><span class="hl-4">&quot;Noto Sans&quot;</span><span class="hl-0"> , </span><span class="hl-4">&quot;font-size&quot;</span><span class="hl-0"> </span><span class="hl-6">:</span><span class="hl-0"> </span><span class="hl-7">16</span><span class="hl-0"> })</span><br/><span class="hl-0">  (vbox 高度 內容)</span>
 </code><button>Copy</button></pre>
 <a id="md:how-to-generate-documents" class="tsd-anchor"></a><h2><a href="#md:how-to-generate-documents">How to generate documents</a></h2><ul>
 <li><p><code>typedoc /path/to/src1 [/path/to/another/src/or/.js ...]</code>
