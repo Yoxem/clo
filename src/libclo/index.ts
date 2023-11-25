@@ -6,6 +6,7 @@ const PDFDocument = require('pdfkit');
 import * as fs from "fs";
 import { Style } from "util";
 import { time } from "console";
+import {memfs} from "memfs";
 
 
 /**
@@ -24,18 +25,28 @@ export enum Direction{
     TTB,
     BTT,
 }
-
 /**
  * Horizonal glue.
  * - stretchFactor : the stretch factor in float
  */
 export interface HGlue{
+    isHorizonalGlue : true,
+    stretchFactor: number
+}
+
+export interface VGlue{
+    isHorizonalGlue : false,
     stretchFactor: number
 }
 
 export interface BreakPoint{
     original : BoxesItem,
     newLined : BoxesItem  
+}
+
+/** BR is like html br */
+export interface BR extends BreakPoint{
+    isBR : true;
 }
 
 export type BoxesItem = HGlue | Box | BreakPoint | BoxesItem[] ;
@@ -85,7 +96,7 @@ export const A4_IN_PX = {"width" : 793.7,
                   "height" : 1122.5};
 
 export const defaultTextStyle : TextStyle = {
-        family : "FreeSerif",
+        family : "Noto Sans CJK TC",
         size : ptToPx(12),
         textWeight : TextWeight.REGULAR,
         fontStyle : FontStyle.ITALIC,
@@ -134,7 +145,7 @@ export function ptToPx(pt : number) : number{
  */
 
 /**
- * convert '\n\n' to newline command ["nl"]
+ * convert '\n\n' to new paragraph command ["br"]
  * @param arr the input `tkTree`
  * @param clo the `Clo` object
  * @returns the input tktree
@@ -156,7 +167,7 @@ export function twoReturnsToNewline(arr : tkTree, clo : Clo): tkTree{
     for (let j = 0; j < middle.length; j++){
         var item = middle[j];
         if (!Array.isArray(item) && item == "\n\n"){
-            result.push(["nl"]); // push a newline command to the result `tkTree`
+            result.push(["br"]); // push a newline command to the result `tkTree`
         }
         else{
             result.push(middle[j]);
@@ -372,7 +383,7 @@ export async function calculateTextWidthHeightAux(element : tkTree,
 
 
         
-
+    // break point of a line
     }else if(element[0] == "bp"){
 
 
@@ -391,18 +402,66 @@ export async function calculateTextWidthHeightAux(element : tkTree,
             newLined : afterNewLine,
         }
 
+    
         return [breakPointNode, styleCache, fontCache];
+    // hglue
     }else if(element[0] == "hglue" && !Array.isArray(element[1])){
-        let hGlue : HGlue = {stretchFactor : parseFloat(element[1])}
+        let hGlue : HGlue = {
+            isHorizonalGlue : true,
+            stretchFactor : parseFloat(element[1])}
         return [hGlue, styleCache, fontCache];
+    }
+    // new line <br/>
+    else if(element[0] == "br"){
+        let brBoxItem = await calculateTextWidthHeightAux(["hglue", "10000"],
+                                        style, styleCache, fontCache);
+        // <br/>
+        let BR : BR = {
+                isBR : true,
+                original : brBoxItem[0],
+                newLined : brBoxItem[0]};
+        return [BR, styleCache, fontCache];
     }
     else{
         return [await calculateTextWidthHeight(element, style), styleCache, fontCache];
     }
 }
 
+/**
+ * put childrenBox inside VBox
+ */
+export function putInVBox(childrenBox: Box[], parentBox: Box) : Box{
+    var voffset = Array(childrenBox.length).fill(0);
 
+    for (var i=0;i<childrenBox.length-1;i++){
+        voffset[i+1] = voffset[i] + childrenBox[i].height;
+        
+    }
+    console.log("~", voffset);
+    for (var i=0; i<childrenBox.length; i++){
+        childrenBox[i] = applyVOffset(childrenBox[i], voffset[i]);
+        childrenBox[i].y += voffset[i];
+    }
 
+    parentBox.content = childrenBox;
+    return parentBox;
+}
+
+/**
+ * apply vertical offset to a box
+ * @param box the box to be applied
+ * @param voffset the vertical offset
+ * @returns applied box
+ */
+export function applyVOffset(box : Box, voffset : number){
+    if(box.y !== null){
+        box.y += voffset;
+    }
+    if (Array.isArray(box.content)){
+        box.content = box.content.map((x)=>applyVOffset(x, voffset));
+    }
+    return box;
+}
 
 /**
  * whole document-representing class
@@ -468,20 +527,34 @@ export class Clo{
 
         let defaultFontStyle : TextStyle = this.attrs.defaultFrameStyle.textStyle;
 
+        // calculate the width and height of each chars
+        let calculated = await calculateTextWidthHeight(preprocessed, defaultFontStyle);
 
-        let a = await calculateTextWidthHeight(preprocessed, defaultFontStyle);
+        //
+        let paragraphized = this.paragraphize(calculated);
+
 
         let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
 
-        let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
+        let segmentedNodes = paragraphized.map((x)=>breakLineAlgorithms.segmentedNodes(x, this.attrs.defaultFrameStyle.width));
 
-        let segmentedNodesToBox =
-            this.segmentedNodesToFrameBox(segmentedNodes, <FrameBox>this.attrs.defaultFrameStyle);
+        let segmentedNodesToBox = segmentedNodes.map((x)=>
+            this.segmentedNodesToFrameBoxAux(x, <FrameBox>this.attrs.defaultFrameStyle));
 
+        let boxWithParagraph = putInVBox(segmentedNodesToBox, this.attrs.defaultFrameStyle);
 
-        let boxesFixed = this.fixenBoxesPosition(segmentedNodesToBox);
+        console.log(boxWithParagraph);
+
+        // fix the bug of main Frame x & y
+        if(boxWithParagraph.x !== null)
+            {boxWithParagraph.x *= 0.75}
+        if(boxWithParagraph.y !== null)
+            {boxWithParagraph.y *= 0.75}
+
+        let boxesFixed = this.fixenBoxesPosition(boxWithParagraph);
 
         
+        (<Box[]>boxesFixed.content).map((e)=>{console.log(e.y)});
 
 
         // generate pdf
@@ -498,6 +571,21 @@ export class Clo{
 
     }
 
+    paragraphize(calculated :  BoxesItem[]): BoxesItem[][]{
+        var res : BoxesItem[][] = [[]];
+        for (var i=0;i<calculated.length;i++){
+            if ("isBR" in <Box>(calculated[i])){
+                res[res.length-1] = res[res.length-1].concat(calculated[i]);
+                res.push([]);
+            }else{
+                res[res.length-1] = res[res.length-1].concat(calculated[i]);
+            }
+        }
+
+        res = res.filter((x)=>x.length !== 0);
+        return res;
+    }
+
     async putText(doc : PDFKit.PDFDocument, box : Box, styleCache : TextStyle,
         fontPairCache : fontPathPSNamePair):
         Promise<[PDFKit.PDFDocument, TextStyle, fontPathPSNamePair]>{
@@ -512,13 +600,16 @@ export class Clo{
                 fontPair = fontStyleTofont(box.textStyle);
                 styleCache = box.textStyle;
                 fontPairCache = fontPair;
+                let textColor = box.textStyle.color;
 
                 if (fontPair.path.match(/\.ttc$/g)){
                     doc
+                    .fillColor(textColor !== undefined ? textColor : "#000000")
                     .font(fontPair.path, fontPair.psName)
                     .fontSize(box.textStyle.size * 0.75);}
                 else{
                     doc
+                    .fillColor(textColor !== undefined ? textColor : "#000000")
                     .font(fontPair.path)
                     .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
                 }
@@ -630,8 +721,6 @@ export class Clo{
                     }
 
                 }
-
-
                 box.content[i] = this.fixenBoxesPosition(box.content[i]);
             }
         }
@@ -645,7 +734,7 @@ export class Clo{
      * @param frame the frame to be layed out.
      * @returns the big `Box`.
      */
-    segmentedNodesToFrameBox(segmentedNodes : BoxesItem[][], frame : FrameBox) : Box{
+    segmentedNodesToFrameBoxAux(segmentedNodes : BoxesItem[][], frame : FrameBox) : Box{
         let baseLineskip = frame.baseLineskip;
         let boxArrayEmpty  : Box[] = [];
         let bigBox : Box = {
@@ -686,6 +775,8 @@ export class Clo{
         }
 
         bigBox.content = bigBoxContent;
+        let bigBoxHeight = bigBoxContent.map((x)=>x.height).reduce((x,y)=>x+y, 0);
+        bigBox.height = bigBoxHeight;
 
         return bigBox;
     }

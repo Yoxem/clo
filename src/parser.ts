@@ -1,6 +1,7 @@
 /**
  * parser.ts - parser and js generator of clo.
  */
+import { text } from 'pdfkit';
 import * as p from 'typescript-parsec';
 import { Token } from 'typescript-parsec';
 
@@ -60,6 +61,7 @@ export const lexer = p.buildLexer([
     [true, /^[\+\-\*\/\&\|\!\^\<\>\~\=\?]+/g, TokenKind.Op],
     [true, /^\@/g, TokenKind.ExprMark],
     [true, /^[()\[\]{}]/g, TokenKind.Paren],
+    [true, /^[\`]([^\`]|[\\].)*[\`]/g, TokenKind.Str],
     [true, /^[\"]([^\"]|[\\].)*[\"]/g, TokenKind.Str],
     [true, /^[\']([^\']|[\\].)*[\']/g, TokenKind.Str],
     [true, /^[()\[\]{}]/g, TokenKind.Paren],
@@ -141,8 +143,11 @@ export function applyNotAtText(value : Token<TokenKind>): tkTree{
 };
 
 export function applyText (input : tkTree): tkTree[]{
+
     return ["%text", input];
 };
+
+
 
 export function applyContent(input : tkTree[]): tkTree[]{
     return ["%content", input];
@@ -269,6 +274,16 @@ clo.generatePdf();
 /*CLO : end of end part*/
 `
 
+export function splitText(input : tkTree): tkTree{
+    var ret;
+    if (!Array.isArray(input)){
+        ret = input.split(/(\s+)/);
+    }else{
+        ret = input.map((x)=>splitText(x));
+    }
+    return ret;
+}
+
 /**
  * Convert `tree` (ASTTree; `tkTree`) to JS Code.
  */
@@ -312,15 +327,17 @@ export function treeToJS(tree : tkTree): string{
         }
     }
     if (head == "%text"){
-        let textContents = tree[1];
+        var textContents = splitText(tree[1]);
         if (Array.isArray(textContents)){
+            textContents = textContents.flat().filter((x)=>{return x !== ""});
             let decoratedArray = textContents
                                 .flatMap(x=>String(x))
+                                .map(x=>x.replace("\'",  "\\\'"))
                                 .map(x=>x.replace("\`","\\\`"));
             
             return "[`" + decoratedArray.join("\`, \`") + "`]";
         }else{
-            let decorated = textContents.replace("\`","\\\`");
+            let decorated = textContents.replace("\`","\\\`").replace("\'", "\\\'");
 
             return "[`" + decorated + "`]";
         }

@@ -34,6 +34,11 @@ class BreakLineAlgorithm {
             return item.width;
         }
     }
+    /**segement node of one paragraph into lines.
+     * @args items: nodes of a line
+     * @args linewidth: the line width
+     * @returns segmented nodes into lines
+    */
     segmentedNodes(items, lineWidth) {
         let lineWidthFixed = lineWidth;
         this.totalCost(items, lineWidthFixed);

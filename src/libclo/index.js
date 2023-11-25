@@ -32,12 +32,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Clo = exports.calculateTextWidthHeightAux = exports.calculateTextWidthHeight = exports.hyphenTkTree = exports.filterEmptyString = exports.spacesToBreakpoint = exports.hyphenForClo = exports.splitCJKV = exports.twoReturnsToNewline = exports.ptToPx = exports.cjkvRegexPattern = exports.cjkvBlocksInRegex = exports.defaultFrameStyle = exports.defaultTextStyle = exports.A4_IN_PX = exports.Direction = void 0;
+exports.Clo = exports.applyVOffset = exports.putInVBox = exports.calculateTextWidthHeightAux = exports.calculateTextWidthHeight = exports.hyphenTkTree = exports.filterEmptyString = exports.spacesToBreakpoint = exports.hyphenForClo = exports.splitCJKV = exports.twoReturnsToNewline = exports.ptToPx = exports.cjkvRegexPattern = exports.cjkvBlocksInRegex = exports.defaultFrameStyle = exports.defaultTextStyle = exports.A4_IN_PX = exports.Direction = void 0;
 const canva_1 = require("../canva");
 const fontkit = __importStar(require("fontkit"));
 const breakLines = __importStar(require("./breakLines"));
 const PDFDocument = require('pdfkit');
-const fs = __importStar(require("fs"));
+const memfs_1 = require("memfs");
 /**
  * TYPES
  */
@@ -60,7 +60,7 @@ var Direction;
 exports.A4_IN_PX = { "width": 793.7,
     "height": 1122.5 };
 exports.defaultTextStyle = {
-    family: "FreeSerif",
+    family: "Noto Sans CJK TC",
     size: ptToPx(12),
     textWeight: canva_1.TextWeight.REGULAR,
     fontStyle: canva_1.FontStyle.ITALIC,
@@ -103,7 +103,7 @@ exports.ptToPx = ptToPx;
  *  REGISTER PART
  */
 /**
- * convert '\n\n' to newline command ["nl"]
+ * convert '\n\n' to new paragraph command ["br"]
  * @param arr the input `tkTree`
  * @param clo the `Clo` object
  * @returns the input tktree
@@ -123,7 +123,7 @@ function twoReturnsToNewline(arr, clo) {
     for (let j = 0; j < middle.length; j++) {
         var item = middle[j];
         if (!Array.isArray(item) && item == "\n\n") {
-            result.push(["nl"]); // push a newline command to the result `tkTree`
+            result.push(["br"]); // push a newline command to the result `tkTree`
         }
         else {
             result.push(middle[j]);
@@ -303,6 +303,7 @@ function calculateTextWidthHeightAux(element, style, styleCache, fontCache) {
                 result.push(item);
             }
             return [result, styleCache, fontCache];
+            // break point of a line
         }
         else if (element[0] == "bp") {
             var beforeNewLine = (yield calculateTextWidthHeightAux(element[1], style, styleCache, fontCache))[0];
@@ -318,10 +319,25 @@ function calculateTextWidthHeightAux(element, style, styleCache, fontCache) {
                 newLined: afterNewLine,
             };
             return [breakPointNode, styleCache, fontCache];
+            // hglue
         }
         else if (element[0] == "hglue" && !Array.isArray(element[1])) {
-            let hGlue = { stretchFactor: parseFloat(element[1]) };
+            let hGlue = {
+                isHorizonalGlue: true,
+                stretchFactor: parseFloat(element[1])
+            };
             return [hGlue, styleCache, fontCache];
+        }
+        // new line <br/>
+        else if (element[0] == "br") {
+            let brBoxItem = yield calculateTextWidthHeightAux(["hglue", "10000"], style, styleCache, fontCache);
+            // <br/>
+            let BR = {
+                isBR: true,
+                original: brBoxItem[0],
+                newLined: brBoxItem[0]
+            };
+            return [BR, styleCache, fontCache];
         }
         else {
             return [yield calculateTextWidthHeight(element, style), styleCache, fontCache];
@@ -329,6 +345,39 @@ function calculateTextWidthHeightAux(element, style, styleCache, fontCache) {
     });
 }
 exports.calculateTextWidthHeightAux = calculateTextWidthHeightAux;
+/**
+ * put childrenBox inside VBox
+ */
+function putInVBox(childrenBox, parentBox) {
+    var voffset = Array(childrenBox.length).fill(0);
+    for (var i = 0; i < childrenBox.length - 1; i++) {
+        voffset[i + 1] = voffset[i] + childrenBox[i].height;
+    }
+    console.log("~", voffset);
+    for (var i = 0; i < childrenBox.length; i++) {
+        childrenBox[i] = applyVOffset(childrenBox[i], voffset[i]);
+        childrenBox[i].y += voffset[i];
+    }
+    parentBox.content = childrenBox;
+    return parentBox;
+}
+exports.putInVBox = putInVBox;
+/**
+ * apply vertical offset to a box
+ * @param box the box to be applied
+ * @param voffset the vertical offset
+ * @returns applied box
+ */
+function applyVOffset(box, voffset) {
+    if (box.y !== null) {
+        box.y += voffset;
+    }
+    if (Array.isArray(box.content)) {
+        box.content = box.content.map((x) => applyVOffset(x, voffset));
+    }
+    return box;
+}
+exports.applyVOffset = applyVOffset;
 /**
  * whole document-representing class
  */
@@ -375,14 +424,28 @@ class Clo {
             }
             // generate the width and height of the stream
             let defaultFontStyle = this.attrs.defaultFrameStyle.textStyle;
-            let a = yield calculateTextWidthHeight(preprocessed, defaultFontStyle);
+            // calculate the width and height of each chars
+            let calculated = yield calculateTextWidthHeight(preprocessed, defaultFontStyle);
+            //
+            let paragraphized = this.paragraphize(calculated);
             let breakLineAlgorithms = new breakLines.BreakLineAlgorithm();
-            let segmentedNodes = breakLineAlgorithms.segmentedNodes(a, this.attrs.defaultFrameStyle.width);
-            let segmentedNodesToBox = this.segmentedNodesToFrameBox(segmentedNodes, this.attrs.defaultFrameStyle);
-            let boxesFixed = this.fixenBoxesPosition(segmentedNodesToBox);
+            let segmentedNodes = paragraphized.map((x) => breakLineAlgorithms.segmentedNodes(x, this.attrs.defaultFrameStyle.width));
+            let segmentedNodesToBox = segmentedNodes.map((x) => this.segmentedNodesToFrameBoxAux(x, this.attrs.defaultFrameStyle));
+            let boxWithParagraph = putInVBox(segmentedNodesToBox, this.attrs.defaultFrameStyle);
+            console.log(boxWithParagraph);
+            // fix the bug of main Frame x & y
+            if (boxWithParagraph.x !== null) {
+                boxWithParagraph.x *= 0.75;
+            }
+            if (boxWithParagraph.y !== null) {
+                boxWithParagraph.y *= 0.75;
+            }
+            let boxesFixed = this.fixenBoxesPosition(boxWithParagraph);
+            boxesFixed.content.map((e) => { console.log(e.y); });
             // generate pdf
             const doc = new PDFDocument({ size: 'A4' });
-            doc.pipe(fs.createWriteStream('output.pdf'));
+            // let fsMemory = memfs();
+            doc.pipe(memfs_1.vol.createWriteStream('output.pdf'));
             this.grid(doc);
             let styleCache = {};
             let fontPairCache = { path: "", psName: "" };
@@ -390,6 +453,20 @@ class Clo {
             // putChar
             doc.end();
         });
+    }
+    paragraphize(calculated) {
+        var res = [[]];
+        for (var i = 0; i < calculated.length; i++) {
+            if ("isBR" in (calculated[i])) {
+                res[res.length - 1] = res[res.length - 1].concat(calculated[i]);
+                res.push([]);
+            }
+            else {
+                res[res.length - 1] = res[res.length - 1].concat(calculated[i]);
+            }
+        }
+        res = res.filter((x) => x.length !== 0);
+        return res;
     }
     putText(doc, box, styleCache, fontPairCache) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -402,13 +479,16 @@ class Clo {
                     fontPair = (0, canva_1.fontStyleTofont)(box.textStyle);
                     styleCache = box.textStyle;
                     fontPairCache = fontPair;
+                    let textColor = box.textStyle.color;
                     if (fontPair.path.match(/\.ttc$/g)) {
                         doc
+                            .fillColor(textColor !== undefined ? textColor : "#000000")
                             .font(fontPair.path, fontPair.psName)
                             .fontSize(box.textStyle.size * 0.75);
                     }
                     else {
                         doc
+                            .fillColor(textColor !== undefined ? textColor : "#000000")
                             .font(fontPair.path)
                             .fontSize(box.textStyle.size * 0.75); // 0.75 must added!  
                     }
@@ -516,7 +596,7 @@ class Clo {
      * @param frame the frame to be layed out.
      * @returns the big `Box`.
      */
-    segmentedNodesToFrameBox(segmentedNodes, frame) {
+    segmentedNodesToFrameBoxAux(segmentedNodes, frame) {
         let baseLineskip = frame.baseLineskip;
         let boxArrayEmpty = [];
         let bigBox = {
@@ -549,6 +629,8 @@ class Clo {
             bigBoxContent.push(currentLineBox);
         }
         bigBox.content = bigBoxContent;
+        let bigBoxHeight = bigBoxContent.map((x) => x.height).reduce((x, y) => x + y, 0);
+        bigBox.height = bigBoxHeight;
         return bigBox;
     }
     /**

@@ -49,7 +49,12 @@ export class BreakLineAlgorithm {
             return item.width;
         }
     }
-
+    
+    /**segement node of one paragraph into lines. 
+     * @args items: nodes of a line
+     * @args linewidth: the line width
+     * @returns segmented nodes into lines
+    */
     segmentedNodes(items : BoxesItem[], lineWidth : number) : BoxesItem[][]{
 
         let lineWidthFixed = lineWidth;

@@ -16,6 +16,16 @@
                 "${workspaceFolder}/**/*.js"
             ]
         },
+
+        {
+            "type": "node-terminal",
+            "name": "Debug Current TS File (ts-node)",
+            "request": "launch",
+            "command": "source ${workspaceFolder}/activate.sh ; ts-node -- ${fileBasenameNoExtension}",
+            "cwd": "${fileDirname}"
+          },
+
+
         {
             "type": "node",
             "request": "launch",

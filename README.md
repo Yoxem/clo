@@ -2,6 +2,7 @@
  - another personal draught of a typesetting language and engine.
  - website: https://kianting.info/wiki/w/Project:Clo
  - license: MIT 
+ - docs : https://buhong.kianting.info/docs/clo/index.html
  - issue tracking mailing list: `clo@kianting.info`
 
 ## How to use
@@ -44,7 +45,8 @@
  - 20231109-10: Keng-kái oa̍h-chōa ián-sǹg-hoat.
  - 20231113: the algorithm is basically fixed, and make a `bigFrame` to prepare for convert to boxes and positions.
  - 20231115-16: grid and basic types laying.
- - 231120 fix the line-breaking algorithm
+ - 20231120: fix the line-breaking algorithm
+ - 20231125: multiple paragraph basic
 
  ## 之後的做法
   - 先做一個前處理註冊器，註冊下列的前處理
@@ -64,7 +66,7 @@
   (hglue 寬度 伸展值)
   (vglue 高度 伸展值)
   (bp 原始模式 斷行模式) ; breakpoint
-  (nl) ; newline
+  (br) ; force newline
   (em 數字)
   (ex 數字)
   (span {"font-family" : "Noto Sans" , "font-size" : 16 })
@@ -74,6 +76,9 @@
 ## How to generate documents
  - `typedoc /path/to/src1 [/path/to/another/src/or/.js ...]`
 the generated page will be stored in `/docs`.
+
+   - set the referee source to my repo:
+   - `typedoc --sourceLinkTemplate "https://git.kianting.info/?p=clo;a=blob;f={path};hb=HEAD#l{line}" /path/to/src1 ...`
 
 store the documents
  - `rsync /path/to/docs host@/var/www/docs`
