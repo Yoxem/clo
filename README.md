@@ -2,7 +2,7 @@
  - another personal draught of a typesetting language and engine.
  - website: https://kianting.info/wiki/w/Project:Clo
  - license: MIT 
- - docs : https://buhong.kianting.info/docs/clo/index.html
+ - docs : https://kianting.info/wiki/w/Project:Clo
  - issue tracking mailing list: `clo@kianting.info`
 
 ## How to use
